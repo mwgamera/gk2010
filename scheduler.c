@@ -6,6 +6,7 @@ typedef struct scheduler_task {
 	
 	short id;
 	int fd;
+	scheduler_fd_t type;
 	void (*handler)(void*);
 	void *data;
 
@@ -23,11 +24,12 @@ static int tasks_fd_max = 0;
 static int scheduler_break_flag = 0;
 
 /* Register a task */
-short scheduler_register(int fd, void (*fun)(void*), void *dat) {
+short scheduler_register(int fd, scheduler_fd_t t, void (*fun)(void*), void *dat) {
 
 	/* create a task */
 	scheduler_task_t *tt, *task = malloc(sizeof*task);
 	task->fd = fd;
+	task->type = t;
 	task->handler = fun;
 	task->data = dat;
 	task->next_fd = NULL;
@@ -96,7 +98,8 @@ int scheduler_registered(short id) {
 
 /* Run the main loop */
 void scheduler_main() {
-	int i; fd_set fds;
+	int i;
+	fd_set fds[3];
 	
 	/* refuse to work without tasks */
 	if (!tasks_fd_max) return; 
@@ -105,23 +108,32 @@ void scheduler_main() {
 	scheduler_break_flag = 0;
 
 	do {	/* set up a set */
-		FD_ZERO(&fds);
+		for(i=0; i<3; i++)
+			FD_ZERO(&(fds[i]));
+
+		/* WARNING: Relies on fact that type values are enforced to be 0-2 */
 		for (i=0; i < tasks_fd_max; i++)
 			if (scheduler_tasks_fd[i] != NULL)
-				FD_SET(i, &fds);
+				FD_SET(i, &(fds[scheduler_tasks_fd[i]->type]));
+
 		/* select */
-		if (!select(tasks_fd_max, &fds, NULL, NULL, NULL))
+		if (!select(tasks_fd_max,
+					&(fds[SCHEDULER_FD_READ]),
+					&(fds[SCHEDULER_FD_WRITE]),
+					&(fds[SCHEDULER_FD_EXCEPT]), NULL))
 			scheduler_break_flag = 1;
-		else /* find out which descriptors have changed */
+		else
 		for (i=0; i < tasks_fd_max; i++) {
-			if (FD_ISSET(i,&fds)) {
-				/* run tasks */
-				scheduler_task_t *tt = scheduler_tasks_fd[i];
-				while (tt != NULL && !scheduler_break_flag) {
-					tt->handler(tt->data);
-					tt = tt->next_fd;
+			int k;
+			for (k=2; k>=0; k--)
+				if (FD_ISSET(i,&fds[k])) {
+					scheduler_task_t *tt = scheduler_tasks_fd[i];
+					while (tt != NULL && !scheduler_break_flag
+							&& tt->type == k) {
+						tt->handler(tt->data);
+						tt = tt->next_fd;
+					}
 				}
-			}
 		}
 	} while (!scheduler_break_flag);
 }
