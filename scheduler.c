@@ -124,8 +124,8 @@ void scheduler_main() {
 			scheduler_break_flag = 1;
 		else
 		for (i=0; i < tasks_fd_max; i++) {
-			int k;
-			for (k=2; k>=0; k--)
+			unsigned k = 3;
+			while (k-- > 0)
 				if (FD_ISSET(i,&fds[k])) {
 					scheduler_task_t *tt = scheduler_tasks_fd[i];
 					while (tt != NULL && !scheduler_break_flag) {
@@ -144,7 +144,7 @@ void scheduler_break() { scheduler_break_flag = 1; }
 /* Free everything and break */
 void scheduler_stop() {
 	if (tasks_id_max)
-	while (--tasks_id_max)
+	while (tasks_id_max--)
 		if (scheduler_tasks_id[tasks_id_max] != NULL)
 			free(scheduler_tasks_id[tasks_id_max]);
 	tasks_fd_max = 0;
