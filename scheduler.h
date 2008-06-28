@@ -15,6 +15,14 @@ void scheduler_unregister(short task);
 /* Run the main loop in which we wait for data and call the handlers. */
 void scheduler_main(void);
 
+/* Finish the main loop and do the clean exit.
+ * One of handlers should call that to finish the program. */
+void scheduler_stop(void);
+
+/* Causes return from main loop but keeps the internal
+ * state untouched. Another call of scheduler_main will
+ * continue from next select. */
+void scheduler_break(void);
 
 /* True if given task is registered */
 int scheduler_registered(short task);

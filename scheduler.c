@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <sys/select.h> /* POSIX 1003.1-2001 */
 #include "scheduler.h"
 
 typedef struct scheduler_task {
@@ -17,6 +18,9 @@ static scheduler_task_t **scheduler_tasks_id = NULL; /* table indexed by id */
 static scheduler_task_t **scheduler_tasks_fd = NULL; /* table of lists indexed by fd */
 static int tasks_id_max = 0;
 static int tasks_fd_max = 0;
+
+/* Break flag */
+static int scheduler_break_flag = 0;
 
 /* Register a task */
 short scheduler_register(int fd, void (*fun)(void*), void *dat) {
@@ -50,7 +54,7 @@ short scheduler_register(int fd, void (*fun)(void*), void *dat) {
 			tt = tt->next_fd;
 		tt->next_fd = task;
 	}
-	
+
 	return task->id;
 }
 
@@ -81,8 +85,6 @@ void scheduler_unregister(short id) {
 	
 	/* free task */
 	free(task);
-
-	return 0;
 }
 
 int scheduler_registered(short id) {
@@ -92,3 +94,54 @@ int scheduler_registered(short id) {
 	else	return 1;
 }
 
+/* Run the main loop */
+void scheduler_main() {
+	int i; fd_set fds;
+	
+	/* refuse to work without tasks */
+	if (!tasks_fd_max) return; 
+
+	/* select */
+	scheduler_break_flag = 0;
+
+	do {	/* set up a set */
+		FD_ZERO(&fds);
+		for (i=0; i < tasks_fd_max; i++)
+			if (scheduler_tasks_fd[i] != NULL)
+				FD_SET(i, &fds);
+		/* select */
+		if (!select(tasks_fd_max, &fds, NULL, NULL, NULL))
+			scheduler_break_flag = 1;
+		else /* find out which descriptors have changed */
+		for (i=0; i < tasks_fd_max; i++) {
+			if (FD_ISSET(i,&fds)) {
+				/* run tasks */
+				scheduler_task_t *tt = scheduler_tasks_fd[i];
+				while (tt != NULL && !scheduler_break_flag) {
+					tt->handler(tt->data);
+					tt = tt->next_fd;
+				}
+			}
+		}
+	} while (!scheduler_break_flag);
+}
+
+/* Break the main */
+void scheduler_break() { scheduler_break_flag = 1; }
+
+/* Free everything and break */
+void scheduler_stop() {
+	if (tasks_id_max)
+	while (--tasks_id_max)
+		if (scheduler_tasks_id[tasks_id_max] != NULL)
+			free(scheduler_tasks_id[tasks_id_max]);
+	tasks_fd_max = 0;
+
+	free(scheduler_tasks_id);
+	free(scheduler_tasks_fd);
+
+	scheduler_tasks_id = NULL;
+	scheduler_tasks_fd = NULL;
+
+	scheduler_break();
+}
