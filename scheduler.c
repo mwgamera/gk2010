@@ -112,10 +112,10 @@ void scheduler_main() {
 			FD_ZERO(&(fds[i]));
 
 		/* WARNING: Relies on fact that type values are enforced to be 0-2 */
-		for (i=0; i < tasks_fd_max; i++)
-			if (scheduler_tasks_fd[i] != NULL)
-				FD_SET(i, &(fds[scheduler_tasks_fd[i]->type]));
-
+		for (i=0; i < tasks_id_max; i++)
+			if (scheduler_tasks_id[i] != NULL)
+				FD_SET(scheduler_tasks_id[i]->fd, &(fds[scheduler_tasks_id[i]->type]));
+		
 		/* select */
 		if (!select(tasks_fd_max,
 					&(fds[SCHEDULER_FD_READ]),
@@ -128,9 +128,9 @@ void scheduler_main() {
 			for (k=2; k>=0; k--)
 				if (FD_ISSET(i,&fds[k])) {
 					scheduler_task_t *tt = scheduler_tasks_fd[i];
-					while (tt != NULL && !scheduler_break_flag
-							&& tt->type == k) {
-						tt->handler(tt->data);
+					while (tt != NULL && !scheduler_break_flag) {
+						if (tt->type == k)
+							tt->handler(tt->data);
 						tt = tt->next_fd;
 					}
 				}
