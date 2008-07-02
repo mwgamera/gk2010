@@ -24,8 +24,7 @@ void scheduler_unregister(short task);
  * in order they were registered. */
 void scheduler_main(void);
 
-/* Finish the main loop and do the clean exit.
- * One of handlers should call that to finish the program. */
+/* Finish the main loop and do the clean exit. */
 void scheduler_stop(void);
 
 /* Causes return from main loop but keeps the internal
