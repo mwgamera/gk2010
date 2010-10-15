@@ -16,7 +16,7 @@ tmatrix tcompose(tmatrix a, tmatrix b) {
 }
 
 point transform(tmatrix a, point b) {
-  point c = POINT_ZERO;
+  point c = {{ 0, 0, 0, 0 }};
   int i, j;
   for (i = 0; i < 4; i++) {
     for (j = 0; j < 4; j++) {
