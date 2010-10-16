@@ -1,6 +1,6 @@
 #include "space-dep.h"
 
-static tmatrix tcompose_asm(tmatrix *a, tmatrix *b, tmatrix *c) {
+static tmatrix tcompose_asm(tmatrix *a, tmatrix *b) {
   __asm__ (
       /* left matrix */
       "movaps   (%1), %%xmm0\n\t"
@@ -116,18 +116,17 @@ static tmatrix tcompose_asm(tmatrix *a, tmatrix *b, tmatrix *c) {
 
       "movaps %%xmm4, 48(%0)\n\t"
 
-      : "=r"(c) : "r"(a), "r"(b), "m"(*a), "m"(*b)
+      : "=r"(b) : "r"(a), "0"(b), "m"(*a), "m"(*b)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3",
         "%xmm4", "%xmm5", "%xmm6", "%xmm7");
-  return *c;
+  return *b;
 }
 
 tmatrix tcompose(tmatrix a, tmatrix b) {
-  tmatrix c = TMATRIX_ZERO;
-  return tcompose_asm(&a, &b, &c);
+  return tcompose_asm(&a, &b);
 }
 
-static point transform_asm(tmatrix *a, point *b, point *c) {
+static point transform_asm(tmatrix *a, point *b) {
   __asm__ (
       "movaps   (%1), %%xmm0\n\t"
       "movaps 16(%1), %%xmm1\n\t"
@@ -160,13 +159,12 @@ static point transform_asm(tmatrix *a, point *b, point *c) {
 
       "movaps %%xmm4, (%0)\n\t"
 
-      : "=r"(c) : "r"(a), "r"(b), "m"(*a), "m"(*b)
+      : "=r"(b) : "r"(a), "0"(b), "m"(*a), "m"(*b)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3",
         "%xmm4", "%xmm5", "%xmm6", "%xmm7");
-  return *c;
+  return *b;
 }
 
 point transform(tmatrix a, point b) {
-  point c = POINT_ZERO;
-  return transform_asm(&a, &b, &c);
+  return transform_asm(&a, &b);
 }
