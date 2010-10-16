@@ -116,10 +116,9 @@ static tmatrix tcompose_asm(tmatrix *a, tmatrix *b, tmatrix *c) {
 
       "movaps %%xmm4, 48(%0)\n\t"
 
-      : "=r"(c) : "r"(a), "r"(b)
-      : "%xmm0", "%xmm1", "%xmm2",
-      "%xmm3", "%xmm4", "%xmm5",
-      "%xmm6", "%xmm7", "memory");
+      : "=r"(c) : "r"(a), "r"(b), "m"(*a), "m"(*b)
+      : "%xmm0", "%xmm1", "%xmm2", "%xmm3",
+        "%xmm4", "%xmm5", "%xmm6", "%xmm7");
   return *c;
 }
 
@@ -160,10 +159,10 @@ static point transform_asm(tmatrix *a, point *b, point *c) {
       "addps   %%xmm6, %%xmm4\n\t"
 
       "movaps %%xmm4, (%0)\n\t"
-      : "=r"(c) : "r"(a), "r"(b)
-      : "%xmm0", "%xmm1", "%xmm2",
-      "%xmm3", "%xmm4", "%xmm5",
-      "%xmm6", "%xmm7", "memory");
+
+      : "=r"(c) : "r"(a), "r"(b), "m"(*a), "m"(*b)
+      : "%xmm0", "%xmm1", "%xmm2", "%xmm3",
+        "%xmm4", "%xmm5", "%xmm6", "%xmm7");
   return *c;
 }
 
