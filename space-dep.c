@@ -1,7 +1,7 @@
 #include "space-dep.h"
 
 static tmatrix tcompose_asm(tmatrix *a, tmatrix *b, tmatrix *c) {
-  __asm__ __volatile__ (
+  __asm__ (
       /* left matrix */
       "movaps   (%1), %%xmm0\n\t"
       "movaps 16(%1), %%xmm1\n\t"
@@ -129,7 +129,7 @@ tmatrix tcompose(tmatrix a, tmatrix b) {
 }
 
 static point transform_asm(tmatrix *a, point *b, point *c) {
-  __asm__ __volatile__(
+  __asm__ (
       "movaps   (%1), %%xmm0\n\t"
       "movaps 16(%1), %%xmm1\n\t"
       "movaps 32(%1), %%xmm2\n\t"
