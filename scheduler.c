@@ -128,14 +128,17 @@ void scheduler_main() {
 			while (k-- > 0)
 				if (FD_ISSET(i,&fds[k])) {
 					scheduler_task_t *tt = scheduler_tasks_fd[i];
-					while (tt != NULL && !scheduler_break_flag) {
+					while (tt != NULL) {
 						if (tt->type == k)
 							tt->handler(tt->data);
+            if (scheduler_break_flag)
+              return;
 						tt = tt->next_fd;
 					}
 				}
 		}
 	} while (!scheduler_break_flag);
+  return;
 }
 
 /* Break the main */
