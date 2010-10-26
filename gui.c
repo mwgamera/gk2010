@@ -1,5 +1,4 @@
 #include "gui.h"
-#include <stdint.h>
 #include <xcb/xcb.h>
 #include <X11/keysym.h>
 #include <stdlib.h>
@@ -9,6 +8,8 @@ static xcb_connection_t *xc = NULL;
 static xcb_screen_t *xs = NULL;
 static xcb_window_t win;
 static xcb_keysym_t keymap[256];
+static xcb_pixmap_t buffer;
+static xcb_gcontext_t blit_gc;
 
 /* Cerate main window with proper attributes */
 static xcb_window_t _main_window(xcb_connection_t *xc, xcb_screen_t *xs, int w, int h) {
@@ -43,6 +44,14 @@ static xcb_keysym_t *_init_keymap(xcb_connection_t *xc) {
   return keymap;
 }
 
+/* Initialise pixmap buffer */
+static void _init_buf(xcb_connection_t *xc, xcb_screen_t *xs, int w, int h) {
+  buffer  = xcb_generate_id(xc);
+  blit_gc = xcb_generate_id(xc);
+  xcb_create_pixmap(xc, xs->root_depth, buffer, xs->root, w, h);
+  xcb_create_gc(xc, blit_gc, xs->root, 0, NULL);
+}
+
 /* Initialise all */
 int gui_init(int w, int h) {
   assert(!xc);
@@ -50,8 +59,9 @@ int gui_init(int w, int h) {
   if (xcb_connection_has_error(xc)) return -1;
   xs = xcb_setup_roots_iterator(xcb_get_setup(xc)).data;
   win = _main_window(xc, xs, w, h);
-  xcb_map_window(xc, win);
+  _init_buf(xc, xs, w, h);
   _init_keymap(xc);
+  xcb_map_window(xc, win);
   return 0;
 }
 
@@ -61,6 +71,9 @@ int gui_init(int w, int h) {
 int gui_fin() {
   assert(xc);
   fprintf(stderr,"gui_fin\n"); /*FIXME DEBUG*/
+  if (buffer) xcb_free_pixmap(xc, buffer);
+  if (blit_gc) xcb_free_gc(xc, blit_gc);
+  xcb_flush(xc);
   xcb_disconnect(xc);
   xc = NULL;
   return 0;
@@ -209,6 +222,14 @@ static gui_event_t _event_ptr(xcb_motion_notify_event_t *e) {
   return r;
 }
 
+/* Handle expose event - redraw screen */
+static void _event_expose(xcb_expose_event_t *e) {
+  xcb_copy_area(xc, buffer, win, blit_gc,
+      e->x, e->y, e->x, e->y,
+      e->width, e->height);
+  xcb_flush(xc);
+}
+
 /* Process events, return requests for higher layer */
 gui_event_t gui_poll() {
   xcb_generic_event_t *e = NULL;
@@ -235,7 +256,7 @@ gui_event_t gui_poll() {
       /* events handled internally */
       case XCB_EXPOSE:
         printf("Expose\n"); /* TODO */
-        xcb_flush(xc);
+        _event_expose((xcb_expose_event_t*)e);
         break;
       default:
         break;

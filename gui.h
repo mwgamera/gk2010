@@ -46,4 +46,7 @@ typedef struct {
 /* Get next available event for controller */
 gui_event_t gui_poll(void);
 
+
+/* TODO: drawing functions */
+
 #endif/*_GUI_H_*/

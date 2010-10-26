@@ -24,6 +24,7 @@ int main() {
   gui_init(640, 480);
   printf("fd = %d\n", gui_fd());
   scheduler_register(gui_fd(), SCHEDULER_FD_READ, &loop, NULL);
+  gui_update();
   scheduler_main();
   gui_fin();
   return 0;
