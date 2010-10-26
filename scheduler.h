@@ -3,9 +3,9 @@
 
 /* Type of event to wait for. */
 typedef enum scheduler_fd_type {
-	SCHEDULER_FD_READ	= 0,
-	SCHEDULER_FD_WRITE	= 1,
-	SCHEDULER_FD_EXCEPT	= 2
+  SCHEDULER_FD_READ   = 0,
+  SCHEDULER_FD_WRITE  = 1,
+  SCHEDULER_FD_EXCEPT = 2
 } scheduler_fd_t;
 
 /* Registers a handler to be called when fd is ready to perform
