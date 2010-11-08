@@ -157,6 +157,10 @@ static point transform_asm(tmatrix *a, point *b) {
       "addps   %%xmm7, %%xmm6\n\t"
       "addps   %%xmm6, %%xmm4\n\t"
 
+      "movaps %%xmm4, %%xmm6\n\t"
+      "shufps $0xFF, %%xmm6, %%xmm6\n\t"
+      "divps %%xmm6, %%xmm4\n\t"
+
       "movaps %%xmm4, (%0)\n\t"
 
       : "=r"(b) : "r"(a), "0"(b), "m"(*a), "m"(*b)
