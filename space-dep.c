@@ -1,7 +1,7 @@
 #include "space-dep.h"
 
 tmatrix tcompose(tmatrix a, tmatrix b) {
-  tmatrix c = TMATRIX_ZERO;
+  tmatrix c = __TMATRIX(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
   scalar r; int j, k;
   for (j = 0; j < 4; j++) {
     for (k = 0; k < 4; k++) {
@@ -18,10 +18,10 @@ tmatrix tcompose(tmatrix a, tmatrix b) {
 point transform(tmatrix a, point b) {
   point c = {{ 0, 0, 0, 0 }};
   int i, j;
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++) {
+  for (i = 0; i < 4; i++)
+    for (j = 0; j < 4; j++)
       c.d[j] += a.d[i][j] * b.d[i];
-    }
-  }
+  for (j = 0; j < 4; j++)
+    c.d[j] /= c.d[3];
   return c;
 }
