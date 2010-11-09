@@ -37,7 +37,7 @@ typedef enum {
  * example simultaneous pitch and yaw are okay) */
 typedef struct {
   gui_event_type_t type; /* directions of changes (bit mask) */
-  unsigned scale[3]; /* scale for each of change types (one for each bit, max 3) */
+  int scale[3]; /* scale for each of change types (one for each bit, max 3) */
 } gui_event_t;
 
 #define GUI_SCALE_KBD 50
