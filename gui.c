@@ -10,6 +10,7 @@ static xcb_window_t win;
 static xcb_keysym_t keymap[256];
 static xcb_pixmap_t buffer;
 static xcb_gcontext_t blit_gc;
+static int width, height;
 
 /* Cerate main window with proper attributes */
 static xcb_window_t _main_window(xcb_connection_t *xc, xcb_screen_t *xs, int w, int h) {
@@ -62,6 +63,9 @@ int gui_init(int w, int h) {
   _init_buf(xc, xs, w, h);
   _init_keymap(xc);
   xcb_map_window(xc, win);
+  xcb_flush(xc);
+  width = w;
+  height = h;
   return 0;
 }
 
@@ -88,9 +92,18 @@ int gui_fd() {
 /* Flush data to server */
 void gui_update() {
   assert(xc);
+  xcb_copy_area(xc, buffer, win, blit_gc,
+      0, 0, 0, 0, width, height);
   xcb_flush(xc);
 }
 
+/* Handle expose event - redraw screen */
+static void _event_expose(xcb_expose_event_t *e) {
+  xcb_copy_area(xc, buffer, win, blit_gc,
+      e->x, e->y, e->x, e->y,
+      e->width, e->height);
+  xcb_flush(xc);
+}
 
 #define DIVSQRT2(x) (((x)*46341)>>16) /* ~= x / sqrt(2) */
 
@@ -222,14 +235,6 @@ static gui_event_t _event_ptr(xcb_motion_notify_event_t *e) {
   return r;
 }
 
-/* Handle expose event - redraw screen */
-static void _event_expose(xcb_expose_event_t *e) {
-  xcb_copy_area(xc, buffer, win, blit_gc,
-      e->x, e->y, e->x, e->y,
-      e->width, e->height);
-  xcb_flush(xc);
-}
-
 /* Process events, return requests for higher layer */
 gui_event_t gui_poll() {
   xcb_generic_event_t *e = NULL;
@@ -259,6 +264,7 @@ gui_event_t gui_poll() {
         _event_expose((xcb_expose_event_t*)e);
         break;
       default:
+        printf("Unhandled event %d\n", e->response_type & ~0x80); /* FIXME: DEBUG */
         break;
     }
     free(e);
@@ -266,5 +272,39 @@ gui_event_t gui_poll() {
   if (!r.type && xcb_connection_has_error(xc))
     r.type = GUI_EVENT_QUIT;
   return r;
+}
+
+/* Clear screen */
+void gui_clear() {
+  xcb_rectangle_t rect;
+  xcb_gcontext_t gc; /* FIXME: gc */
+  uint32_t mask = XCB_GC_FOREGROUND;
+  uint32_t value;
+  assert(xc);
+  gc = xcb_generate_id(xc);
+  value = xs->black_pixel;
+  xcb_create_gc(xc, gc, buffer, mask, &value);
+  rect.x = 0;
+  rect.y = 0;
+  rect.width = width;
+  rect.height = height;
+  xcb_poly_fill_rectangle(xc, buffer, gc, 1, &rect);
+  xcb_free_gc(xc, gc);
+}
+
+/* Draw line */
+void gui_draw_line(int x0, int y0, int x1, int y1) {
+  xcb_point_t p[2];
+  xcb_gcontext_t gc; /* FIXME: gc */
+  uint32_t mask = XCB_GC_FOREGROUND;
+  uint32_t value;
+  assert(xc);
+  gc = xcb_generate_id(xc);
+  value = xs->white_pixel;
+  xcb_create_gc(xc, gc, buffer, mask, &value);
+  p[0].x = x0; p[0].y = y0;
+  p[1].x = x1; p[1].y = y1;
+  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer, gc, 2, p);
+  xcb_free_gc(xc, gc);
 }
 

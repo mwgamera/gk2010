@@ -47,6 +47,10 @@ typedef struct {
 gui_event_t gui_poll(void);
 
 
-/* TODO: drawing functions */
+/* Darwing functions */
+void gui_clear(void);
+void gui_draw_line(int,int,int,int);
+
+/* TODO: colors */
 
 #endif/*_GUI_H_*/

@@ -13,18 +13,22 @@ void loop(void *x) {
   int i, j = 0, k = 0;
   x = NULL;
   ev = gui_poll();
+  if (!ev.type) return; /* !! */
   /* printf("gui_poll -> %04X [%d %d %d]\n", ev.type, ev.scale[0], ev.scale[1], ev.scale[2]); */
+  gui_clear();
   for (i = 1; i; i <<= 1, j++)
-    if (ev.type & i)
+    if (ev.type & i) {
+      gui_draw_line(20*j, 100, 200, 300);
       printf("(%04X)%s<%d>\n", ev.type&i, strings[j], k<4 ? ev.scale[k++] : 0);
+    }
   if (ev.type == GUI_EVENT_QUIT) scheduler_stop();
+  gui_update();
 }
 
 int main() {
   gui_init(640, 480);
   printf("fd = %d\n", gui_fd());
   scheduler_register(gui_fd(), SCHEDULER_FD_READ, &loop, NULL);
-  gui_update();
   scheduler_main();
   gui_fin();
   return 0;
