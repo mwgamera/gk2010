@@ -51,11 +51,14 @@ static void _init_buf(xcb_connection_t *xc, xcb_screen_t *xs, int w, int h) {
   blit_gc = xcb_generate_id(xc);
   xcb_create_pixmap(xc, xs->root_depth, buffer, xs->root, w, h);
   xcb_create_gc(xc, blit_gc, xs->root, 0, NULL);
+  gui_clear();
 }
 
 /* Initialise all */
 int gui_init(int w, int h) {
   assert(!xc);
+  width = w;
+  height = h;
   xc = xcb_connect(NULL, NULL);
   if (xcb_connection_has_error(xc)) return -1;
   xs = xcb_setup_roots_iterator(xcb_get_setup(xc)).data;
@@ -64,8 +67,6 @@ int gui_init(int w, int h) {
   _init_keymap(xc);
   xcb_map_window(xc, win);
   xcb_flush(xc);
-  width = w;
-  height = h;
   return 0;
 }
 
