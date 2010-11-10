@@ -1,4 +1,5 @@
 #include "space-dep.h"
+#include <math.h>
 
 tmatrix tcompose(tmatrix a, tmatrix b) {
   tmatrix c = __TMATRIX(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
@@ -24,4 +25,15 @@ point transform(tmatrix a, point b) {
   for (j = 0; j < 4; j++)
     c.d[j] /= c.d[3];
   return c;
+}
+
+point direction(point v) {
+  double r = 0; int j;
+  for (j = 0; j < 3; j++)
+    r += v.d[j] * v.d[j];
+  r = sqrt(r);
+  for (j = 0; j < 3; j++)
+    v.d[j] /= r;
+  v.d[3] = 1;
+  return v;
 }

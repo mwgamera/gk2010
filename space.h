@@ -29,4 +29,7 @@ tmatrix tcompose(tmatrix, tmatrix);
 /* Application of transformation */
 point transform(tmatrix, point);
 
+/* Versor of a vector */
+point direction(point);
+
 #endif/*_SPACE_H_*/
