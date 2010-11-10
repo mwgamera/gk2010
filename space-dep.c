@@ -172,3 +172,28 @@ static point transform_asm(tmatrix *a, point *b) {
 point transform(tmatrix a, point b) {
   return transform_asm(&a, &b);
 }
+
+static point direction_asm(point *v) {
+  __asm__ (
+      "movaps (%1), %%xmm0\n\t"
+      "movaps (%1), %%xmm2\n\t"
+
+      "mulps %%xmm0, %%xmm0\n\t"
+      "movhlps %%xmm0, %%xmm1\n\t"
+      "haddps %%xmm0, %%xmm0\n\t"
+      "addss %%xmm1, %%xmm0\n\t"
+      "rsqrtss %%xmm0, %%xmm0\n\t"
+      "shufps $0x00, %%xmm0, %%xmm0\n\t"
+      "mulps %%xmm0, %%xmm2\n\t"
+
+      "movaps %%xmm2, (%0)\n\t"
+      "mov %3, 12(%0)"
+      : "=r"(v) : "0"(v), "m"(*v), "r"(1.0f)
+      : "%eax", "%xmm0", "%xmm1", "%xmm2");
+  return *v;
+}
+
+point direction(point v) {
+  v = direction_asm(&v);
+  return v;
+}
