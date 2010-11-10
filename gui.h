@@ -40,7 +40,7 @@ typedef struct {
   int scale[3]; /* scale for each of change types (one for each bit, max 3) */
 } gui_event_t;
 
-#define GUI_SCALE_KBD 50
+#define GUI_SCALE_KBD 20
 #define GUI_SCALE_PRT 1
 
 /* Get next available event for controller */

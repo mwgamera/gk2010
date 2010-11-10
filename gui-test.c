@@ -12,8 +12,10 @@ tmatrix view = TMATRIX_ONE;
 
 void draw_line(point a, point b) {
   int x0, y0, x1, y1;
-  a = transform(view, a);
-  b = transform(view, b);
+  tmatrix x = TMATRIX(1,0,0, 640/2 ,0,1,0, 480/2 ,0,0,1, 0 ,0,0,0,1);
+  x = tcompose(x, view);
+  a = transform(x, a);
+  b = transform(x, b);
   x0 = POINT_GET(a, 0);
   y0 = POINT_GET(a, 1);
   x1 = POINT_GET(b, 0);
@@ -43,10 +45,10 @@ void draw_scene() {
 
 void loop(void *x) {
   static const char *strings[] = {
-    "GUI_EVENT_FORWARD",  "GUI_EVENT_RIGHT",  "GUI_EVENT_DOWN", "(reserved)",
-    "GUI_EVENT_ROLL",     "GUI_EVENT_PITCH",  "GUI_EVENT_YAW",  "(reserved)",
-    "GUI_EVENT_FOCUS",    "(reserved)",       "(reserved)",     "(reserved)",
-    "(reserved)",         "(reserved)",       "(reserved)",     "GUI_EVENT_QUIT"
+    "GUI_EVENT_FORWARD",  "GUI_EVENT_RIGHT",  "GUI_EVENT_DOWN", "(reserved#4)",
+    "GUI_EVENT_ROLL",     "GUI_EVENT_PITCH",  "GUI_EVENT_YAW",  "(reserved#8)",
+    "GUI_EVENT_FOCUS",    "(reserved#10)",    "(reserved#11)",  "(reserved#12)",
+    "(reserved#13)",      "(reserved#14)",    "(reserved#15)",  "GUI_EVENT_QUIT"
   };
   gui_event_t ev;
   int i, j = 0, k = 0;
@@ -63,7 +65,7 @@ void loop(void *x) {
           TMATRIX_SET(view, 1, 3, TMATRIX_GET(view,1,3)-ev.scale[k]);
           break;
         case GUI_EVENT_RIGHT:
-          TMATRIX_SET(view, 0, 3, TMATRIX_GET(view,0,3)-ev.scale[k]);
+          TMATRIX_SET(view, 0, 3, TMATRIX_GET(view,0,3)+ev.scale[k]);
           break;
         case GUI_EVENT_ROLL:
           {
@@ -91,7 +93,7 @@ void loop(void *x) {
       k++;
     }
   if (ev.type == GUI_EVENT_QUIT) scheduler_stop();
-  draw_scene();
+  if (k) draw_scene();
 }
 
 int main() {
