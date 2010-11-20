@@ -76,6 +76,34 @@ void camera_reset(int w, int h, float s) {
   tmm_modified(TMM_LOCATION);
 }
 
+/* Move along axis (intrinsic) by scale units */
+void camera_move(int axis, float scale) {
+  TMATRIX_SET(TMM_MATRIX(TMM_LOCATION),0,3,
+      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),0,3) + 
+      TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,0) * scale);
+  TMATRIX_SET(TMM_MATRIX(TMM_LOCATION),1,3,
+      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),1,3) + 
+      TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,1) * scale);
+  TMATRIX_SET(TMM_MATRIX(TMM_LOCATION),2,3,
+      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),2,3) + 
+      TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,2) * scale);
+  tmm_modified(TMM_LOCATION);
+}
+
+static tmatrix mkrtt(scalar,scalar,scalar,double);
+
+/* Move around axis (intrinsic) by angle */
+void camera_rotate(int axis, float angle) {
+  /* (R*A')' = A*R' */
+  TMM_MATRIX(TMM_ORIENTATION) = tcompose(TMM_MATRIX(TMM_ORIENTATION), mkrtt(
+        TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,0),
+        TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,1),
+        TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,2),
+        angle));
+  /* FIXME: it will loose it's orthogonality with time */
+  tmm_modified(TMM_ORIENTATION);
+}
+
 /* Transposed rotation around given axis (0,0,0)->(x,y,z) */
 static tmatrix mkrtt(scalar x, scalar y, scalar z, double a) {
   /* TODO: This should be moved to space-dep since it can be optimised for SSE. */
@@ -111,6 +139,28 @@ void printmatrix(tmatrix m) {
 int main() {
   camera_reset(640,480,1);
   printmatrix(camera_projection());
+  printf("---\n");
+  printmatrix(TMM_MATRIX(TMM_LOCATION));
+  printf("---\n");
+  printmatrix(TMM_MATRIX(TMM_ORIENTATION));
+
+  printf("--- fwd 3 ---\n");
+  CAMERA_FORWARD(3);
+  printmatrix(TMM_MATRIX(TMM_LOCATION));
+  printf("---\n");
+  printmatrix(TMM_MATRIX(TMM_ORIENTATION));
+
+  printf("--- yaw 1.6 ---\n");
+  CAMERA_YAW(1.6);
+  printmatrix(TMM_MATRIX(TMM_LOCATION));
+  printf("---\n");
+  printmatrix(TMM_MATRIX(TMM_ORIENTATION));
+
+  printf("--- fwd 3 ---\n");
+  CAMERA_FORWARD(3);
+  printmatrix(TMM_MATRIX(TMM_LOCATION));
+  printf("---\n");
+  printmatrix(TMM_MATRIX(TMM_ORIENTATION));
   return 0;
 }
 
