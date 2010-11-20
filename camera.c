@@ -3,7 +3,7 @@
 
 /* Focal length */
 #define DEFAULT_FLENGTH 300.f
-float camera_flength;
+static float fo;
 
 /* Tree of transformation matrices with validity flag */
 #define TMM_LENGTH 7
@@ -59,9 +59,9 @@ void camera_reset(int w, int h, float s) {
   TMM_SETVALID(TMM_SCREEN);
   tmm_modified(TMM_SCREEN);
   /* projection matrix */
-  camera_flength = DEFAULT_FLENGTH;
+  fo = DEFAULT_FLENGTH;
   TMM_MATRIX(TMM_PROJECTION) = I;
-  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 2, 1.0 / camera_flength);
+  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 2, 1.0 / fo);
   TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 3, 0.0);
   TMM_SETVALID(TMM_PROJECTION);
   tmm_modified(TMM_PROJECTION);
@@ -104,6 +104,19 @@ void camera_rotate(int axis, float angle) {
   tmm_modified(TMM_ORIENTATION);
 }
 
+/* Change focal length */
+float camera_focus_set(float f) {
+  float old = fo; fo = f;
+  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 2, 1.0 / fo);
+  tmm_modified(TMM_PROJECTION);
+  return old;
+}
+
+/* Add to focal length */
+float camera_focus_add(float f) {
+  return camera_focus_set(fo+f);
+}
+
 /* Transposed rotation around given axis (0,0,0)->(x,y,z) */
 static tmatrix mkrtt(scalar x, scalar y, scalar z, double a) {
   /* TODO: This should be moved to space-dep since it can be optimised for SSE. */
@@ -125,42 +138,3 @@ static tmatrix mkrtt(scalar x, scalar y, scalar z, double a) {
   TMATRIX_SET(r,2,2, c+z*z*ic);
   return r;
 }
-
-/* FIXME: DEBUG */
-#include <stdio.h>
-void printmatrix(tmatrix m) {
-  int i, j;
-  for (i = 0; i < 4; i++) {
-    for (j = 0; j < 4; j++)
-      printf("%8.4f ", TMATRIX_GET(m, i, j));
-    printf("\n");
-  }
-}
-int main() {
-  camera_reset(640,480,1);
-  printmatrix(camera_projection());
-  printf("---\n");
-  printmatrix(TMM_MATRIX(TMM_LOCATION));
-  printf("---\n");
-  printmatrix(TMM_MATRIX(TMM_ORIENTATION));
-
-  printf("--- fwd 3 ---\n");
-  CAMERA_FORWARD(3);
-  printmatrix(TMM_MATRIX(TMM_LOCATION));
-  printf("---\n");
-  printmatrix(TMM_MATRIX(TMM_ORIENTATION));
-
-  printf("--- yaw 1.6 ---\n");
-  CAMERA_YAW(1.6);
-  printmatrix(TMM_MATRIX(TMM_LOCATION));
-  printf("---\n");
-  printmatrix(TMM_MATRIX(TMM_ORIENTATION));
-
-  printf("--- fwd 3 ---\n");
-  CAMERA_FORWARD(3);
-  printmatrix(TMM_MATRIX(TMM_LOCATION));
-  printf("---\n");
-  printmatrix(TMM_MATRIX(TMM_ORIENTATION));
-  return 0;
-}
-
