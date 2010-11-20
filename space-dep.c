@@ -157,10 +157,6 @@ static point transform_asm(tmatrix *a, point *b) {
       "addps   %%xmm7, %%xmm6\n\t"
       "addps   %%xmm6, %%xmm4\n\t"
 
-      "movaps %%xmm4, %%xmm6\n\t"
-      "shufps $0xFF, %%xmm6, %%xmm6\n\t"
-      "divps %%xmm6, %%xmm4\n\t"
-
       "movaps %%xmm4, (%0)\n\t"
 
       : "=r"(b) : "r"(a), "0"(b), "m"(*a), "m"(*b)
@@ -171,6 +167,22 @@ static point transform_asm(tmatrix *a, point *b) {
 
 point transform(tmatrix a, point b) {
   return transform_asm(&a, &b);
+}
+
+static point normalize_asm(point *p) {
+  __asm__ (
+      "movaps (%1), %%xmm0\n\t"
+      "movaps %%xmm0, %%xmm1\n\t"
+      "shufps $0xFF, %%xmm1, %%xmm1\n\t"
+      "divps %%xmm1, %%xmm0\n\t"
+      "movaps %%xmm0, (%0)\n\t"
+      : "=r"(p) : "0"(p), "m"(*p)
+      : "%xmm0", "%xmm1");
+  return *p;
+}
+
+point normalize(point p) {
+  return normalize_asm(&p);
 }
 
 static point direction_asm(point *v) {
