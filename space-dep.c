@@ -22,9 +22,14 @@ point transform(tmatrix a, point b) {
   for (i = 0; i < 4; i++)
     for (j = 0; j < 4; j++)
       c.d[j] += a.d[i][j] * b.d[i];
-  for (j = 0; j < 4; j++)
-    c.d[j] /= c.d[3];
   return c;
+}
+
+point normalize(point p) {
+  int i;
+  for (i = 0; i < 4; i++)
+    p.d[i] /= p.d[3];
+  return p;
 }
 
 point direction(point v) {

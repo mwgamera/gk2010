@@ -29,6 +29,9 @@ tmatrix tcompose(tmatrix, tmatrix);
 /* Application of transformation */
 point transform(tmatrix, point);
 
+/* Normalize vector after transformation */
+point normalize(point);
+
 /* Versor of a vector */
 point direction(point);
 
