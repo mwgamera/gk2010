@@ -43,7 +43,7 @@ static tmatrix tmm_combine(int i) {
 }
 
 /* Retrieve camera matrix */
-tmatrix camera_projection() {
+tmatrix camera_transform() {
   return tmm_combine(0);
 }
 
@@ -62,12 +62,16 @@ void camera_reset(int w, int h, float s) {
   fo = DEFAULT_FLENGTH;
   TMM_MATRIX(TMM_PROJECTION) = I;
   TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 2, 1.0 / fo);
+  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 2, 3, -fo);
   TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 3, 0.0);
   TMM_SETVALID(TMM_PROJECTION);
   tmm_modified(TMM_PROJECTION);
   /* orientation matrix (rotation) */
   TMM_MATRIX(TMM_ORIENTATION) = I;
-  /* TODO: world handedness and initial horizon should be set here */
+  TMATRIX_SET(TMM_MATRIX(TMM_ORIENTATION), 1, 1, 0);
+  TMATRIX_SET(TMM_MATRIX(TMM_ORIENTATION), 2, 2, 0);
+  TMATRIX_SET(TMM_MATRIX(TMM_ORIENTATION), 1, 2, 1);
+  TMATRIX_SET(TMM_MATRIX(TMM_ORIENTATION), 2, 1, 1);
   TMM_SETVALID(TMM_ORIENTATION);
   tmm_modified(TMM_ORIENTATION);
   /* location matrix, reset to camera at (0,0,0) */
@@ -79,13 +83,13 @@ void camera_reset(int w, int h, float s) {
 /* Move along axis (intrinsic) by scale units */
 void camera_move(int axis, float scale) {
   TMATRIX_SET(TMM_MATRIX(TMM_LOCATION),0,3,
-      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),0,3) + 
+      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),0,3) -
       TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,0) * scale);
   TMATRIX_SET(TMM_MATRIX(TMM_LOCATION),1,3,
-      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),1,3) + 
+      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),1,3) -
       TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,1) * scale);
   TMATRIX_SET(TMM_MATRIX(TMM_LOCATION),2,3,
-      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),2,3) + 
+      TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),2,3) -
       TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,2) * scale);
   tmm_modified(TMM_LOCATION);
 }
@@ -99,15 +103,16 @@ void camera_rotate(int axis, float angle) {
         TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,0),
         TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,1),
         TMATRIX_GET(TMM_MATRIX(TMM_ORIENTATION),axis,2),
-        angle));
+        -angle));
   /* FIXME: it will loose it's orthogonality with time */
   tmm_modified(TMM_ORIENTATION);
 }
 
 /* Change focal length */
 float camera_focus_set(float f) {
-  float old = fo; fo = f;
+  float old = fo; fo = f > 0 ? f : fo;
   TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 2, 1.0 / fo);
+  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 2, 3, -fo);
   tmm_modified(TMM_PROJECTION);
   return old;
 }

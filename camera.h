@@ -23,7 +23,7 @@ void camera_rotate(int, float);
 float camera_focus_set(float);
 float camera_focus_add(float);
 
-/* Get projection matrix */
-tmatrix camera_projection(void);
+/* Get view with projection transform */
+tmatrix camera_transform(void);
 
 #endif/*_CAMERA_H_*/
