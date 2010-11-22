@@ -21,7 +21,7 @@ static char *token(FILE *f) {
   if (c == '#') {
     do c = getc(f);
     while (c != '\n' && c != EOF);
-    c = getc(f);
+    return token(f);
   }
   while (!isspace(c) && c != EOF && i < TOKEN_LENGTH-1) {
     buf[i++] = c;
@@ -47,9 +47,9 @@ model *model_read(FILE *f) {
         m->vertex  = malloc(m->nvertices * sizeof*m->vertex);
         m->pvertex = malloc(m->nvertices * sizeof*m->vertex);
         for (i = 0; i < m->nvertices; i++) {
-          POINT_SET(m->vertex[i], 0, atoi(token(f)));
-          POINT_SET(m->vertex[i], 1, atoi(token(f)));
-          POINT_SET(m->vertex[i], 2, atoi(token(f)));
+          POINT_SET(m->vertex[i], 0, atof(token(f)));
+          POINT_SET(m->vertex[i], 1, atof(token(f)));
+          POINT_SET(m->vertex[i], 2, atof(token(f)));
           POINT_SET(m->vertex[i], 3, 1.f);
         }
         break;
