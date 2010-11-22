@@ -9,6 +9,7 @@
 void model_free(model *m) {
   free(m->edge);
   free(m->vertex);
+  free(m->pvertex);
   free(m);
 }
 
@@ -43,7 +44,8 @@ model *model_read(FILE *f) {
     switch(s[0]) {
       case 'v': /* vertices */
         m->nvertices = atoi(s+1);
-        m->vertex = malloc(m->nvertices * sizeof*m->vertex);
+        m->vertex  = malloc(m->nvertices * sizeof*m->vertex);
+        m->pvertex = malloc(m->nvertices * sizeof*m->vertex);
         for (i = 0; i < m->nvertices; i++) {
           POINT_SET(m->vertex[i], 0, atoi(token(f)));
           POINT_SET(m->vertex[i], 1, atoi(token(f)));
@@ -71,11 +73,22 @@ model *model_read(FILE *f) {
         break;
       default: /* syntax error */
         if (m->nedges) free(m->edge);
-        if (m->nvertices) free(m->vertex);
+        if (m->nvertices) {
+          free(m->vertex);
+          free(m->pvertex);
+        }
         free(m);
         return NULL;
     }
   for (i = 0; i < m->nvertices; i++)
     m->vertex[i] = normalize(transform(world, m->vertex[i]));
   return m;
+}
+
+void model_transform(tmatrix a, model *m) {
+  int i;
+  for (i = 0; i < m->nvertices; i++)
+    m->pvertex[i] = transform(a, m->vertex[i]);
+  for (i = 0; i < m->nvertices; i++)
+    m->pvertex[i] = normalize(m->pvertex[i]);
 }
