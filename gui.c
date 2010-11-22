@@ -70,12 +70,9 @@ int gui_init(int w, int h) {
   return 0;
 }
 
-
-#include <stdio.h> /*FIXME DEBUG: printf */
 /* Close and clean up */
 int gui_fin() {
   assert(xc);
-  fprintf(stderr,"gui_fin\n"); /*FIXME DEBUG*/
   if (buffer) xcb_free_pixmap(xc, buffer);
   if (blit_gc) xcb_free_gc(xc, blit_gc);
   xcb_flush(xc);
@@ -112,7 +109,6 @@ static void _event_expose(xcb_expose_event_t *e) {
 static gui_event_t _event_kbd(xcb_keycode_t code) {
   gui_event_t r = { GUI_EVENT_NONE, {0, 0, 0} };
   assert(code >= 8);
-  printf("scancode: %d, keysym:0x%04x\n", code, keymap[code]); /*FIXME:DEBUG*/
   switch (keymap[code]) {
     /* horizontal movement (WSAD/arrows) */
     case XK_w: case XK_Up:
@@ -261,11 +257,9 @@ gui_event_t gui_poll() {
         break;
       /* events handled internally */
       case XCB_EXPOSE:
-        printf("Expose\n"); /* TODO */
         _event_expose((xcb_expose_event_t*)e);
         break;
       default:
-        printf("Unhandled event %d\n", e->response_type & ~0x80); /* FIXME: DEBUG */
         break;
     }
     free(e);
