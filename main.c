@@ -49,27 +49,48 @@ void clean_scene(void) {
   free(object);
 }
 
+/* Get 2.5D Cohen-Sutherland clipping code */
+short sutherland(point p) {
+  short c = 0;
+  if (POINT_GET(p,0) < 0)      c |= 0x1;
+  if (POINT_GET(p,0) > WIDTH)  c |= 0x2;
+  if (POINT_GET(p,1) < 0)      c |= 0x4;
+  if (POINT_GET(p,1) > HEIGHT) c |= 0x8;
+  if (POINT_GET(p,2) < 0.0001) c |= 0x10; /* behind */
+  return c;
+}
+
 /* Draw wire-frame without occlusions */
 void draw_scene(void) {
   int i, k;
   tmatrix p = camera_transform();
-  for (i = 0; i < nobjects; i++)
+
+  /* transform all points in all objects */
+  for (i = 0; i < nobjects; i++) {
     model_transform(p, object[i]);
+    /* calculate and store code of each point */
+    for (k = 0; k < object[i]->nvertices; k++) {
+      union { scalar w; short c; } code;
+      code.c = sutherland(object[i]->pvertex[k]);
+      POINT_SET(object[i]->pvertex[k], 3, code.w);
+    }
+  }
   gui_clear();
   for (i = 0; i < nobjects; i++) {
     /* wire-frame specific code, relies on structure of model */
     for (k = 0; k < object[i]->nedges; k++) {
+      union { scalar w; short c; } ac, bc;
       point a = object[i]->pvertex[object[i]->edge[(k<<1)+0]];
       point b = object[i]->pvertex[object[i]->edge[(k<<1)+1]];
-      if (POINT_GET(a,2) > 0 && POINT_GET(b,2) > 0) {
+      ac.w = POINT_GET(a,3);
+      bc.w = POINT_GET(b,3);
+      if (!(ac.c & bc.c) && !((ac.c | bc.c) & 0x10))
         gui_draw_line(
             POINT_GET(a,0),
             POINT_GET(a,1),
             POINT_GET(b,0),
             POINT_GET(b,1));
-      }
     }
-    printf("\n");
   }
   gui_update();
 }
