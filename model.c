@@ -90,7 +90,7 @@ void model_transform(tmatrix a, model *m) {
   for (i = 0; i < m->nvertices; i++)
     m->pvertex[i] = transform(a, m->vertex[i]);
   for (i = 0; i < m->nvertices; i++) {
-    if (POINT_GET(m->pvertex[i], 2) >= 0)
+    if (POINT_GET(m->pvertex[i], 2) > 0)
         m->pvertex[i] = normalize(m->pvertex[i]);
   }
 }
