@@ -12,7 +12,7 @@ model **object = NULL;
 
 /* Load scene */
 void make_scene(void) {
-  static char *fns[] = { "cube1.model" };
+  static char *fns[] = { "cube1.model", "cube2.model" };
   FILE *fp;
   int i, n = (sizeof fns / sizeof *fns);
   assert(nobjects == 0);
