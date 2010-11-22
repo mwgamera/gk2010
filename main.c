@@ -7,12 +7,20 @@
 #include <stdlib.h>
 #include <assert.h>
 
+#define WIDTH  640
+#define HEIGHT 480
+
 int nobjects = 0;
 model **object = NULL;
 
 /* Load scene */
 void make_scene(void) {
-  static char *fns[] = { "cube1.model", "cube2.model" };
+  static char *fns[] = {
+    "cube1.model",
+    "cube2.model",
+    "cube3.model",
+    "cube4.model"
+  };
   FILE *fp;
   int i, n = (sizeof fns / sizeof *fns);
   assert(nobjects == 0);
@@ -53,13 +61,15 @@ void draw_scene(void) {
     for (k = 0; k < object[i]->nedges; k++) {
       point a = object[i]->pvertex[object[i]->edge[(k<<1)+0]];
       point b = object[i]->pvertex[object[i]->edge[(k<<1)+1]];
-      if (POINT_GET(a,2) >= 0 && POINT_GET(b,2) >= 0)
+      if (POINT_GET(a,2) > 0 && POINT_GET(b,2) > 0) {
         gui_draw_line(
             POINT_GET(a,0),
             POINT_GET(a,1),
             POINT_GET(b,0),
             POINT_GET(b,1));
+      }
     }
+    printf("\n");
   }
   gui_update();
 }
@@ -75,9 +85,9 @@ void loop(void *x) {
   if (ev.type & GUI_EVENT_RIGHT) CAMERA_RIGHT(ev.scale[k++]);
   if (ev.type & GUI_EVENT_DOWN) CAMERA_DOWN(ev.scale[k++]);
 
-  if (ev.type & GUI_EVENT_ROLL) CAMERA_ROLL(ev.scale[k++] / 180.0);
-  if (ev.type & GUI_EVENT_PITCH) CAMERA_PITCH(ev.scale[k++] / 180.0);
-  if (ev.type & GUI_EVENT_YAW) CAMERA_YAW(ev.scale[k++] / 180.0);
+  if (ev.type & GUI_EVENT_ROLL) CAMERA_ROLL(ev.scale[k++] / 314.0);
+  if (ev.type & GUI_EVENT_PITCH) CAMERA_PITCH(ev.scale[k++] / 314.0);
+  if (ev.type & GUI_EVENT_YAW) CAMERA_YAW(ev.scale[k++] / 314.0);
 
   if (ev.type & GUI_EVENT_FOCUS) camera_focus_add(ev.scale[k++]);
 
@@ -87,9 +97,9 @@ void loop(void *x) {
 
 /* Main */
 int main() {
-  gui_init(640, 480);
+  gui_init(WIDTH, HEIGHT);
   make_scene();
-  camera_reset(640, 480, 1);
+  camera_reset(WIDTH, HEIGHT, 1);
   draw_scene();
   scheduler_register(gui_fd(), SCHEDULER_FD_READ, &loop, NULL);
   scheduler_main();
