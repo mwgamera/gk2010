@@ -61,9 +61,7 @@ void camera_reset(int w, int h, float s) {
   /* projection matrix */
   fo = DEFAULT_FLENGTH;
   TMM_MATRIX(TMM_PROJECTION) = I;
-  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 2, 1.0 / fo);
-  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 2, 3, -fo);
-  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 3, 0.0);
+  camera_focus_set(fo);
   TMM_SETVALID(TMM_PROJECTION);
   tmm_modified(TMM_PROJECTION);
   /* orientation matrix (rotation) */
@@ -112,7 +110,9 @@ void camera_rotate(int axis, float angle) {
 float camera_focus_set(float f) {
   float old = fo; fo = f > 0 ? f : fo;
   TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 2, 1.0 / fo);
-  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 2, 3, -fo);
+  /* TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 2, 3, -fo); */
+  TMATRIX_SET(TMM_MATRIX(TMM_PROJECTION), 3, 3, 0.0);
+
   tmm_modified(TMM_PROJECTION);
   return old;
 }
