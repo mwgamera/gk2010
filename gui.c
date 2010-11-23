@@ -39,7 +39,7 @@ static xcb_keysym_t *_init_keymap(xcb_connection_t *xc) {
   reply = xcb_get_keyboard_mapping_reply(xc, xcb_get_keyboard_mapping(xc, 8, 248), NULL);
   syms = xcb_get_keyboard_mapping_keysyms(reply);
   l = xcb_get_keyboard_mapping_keysyms_length(reply);
-  for (i = 8, j = 0; j < l; j += reply->keysyms_per_keycode, i++)
+  for (i = 8, j = 0; i < 255 && j < l; j += reply->keysyms_per_keycode, i++)
     keymap[i] = syms[j];
   free(reply);
   return keymap;
