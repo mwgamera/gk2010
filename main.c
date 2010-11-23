@@ -19,7 +19,8 @@ void make_scene(void) {
     "cube1.model",
     "cube2.model",
     "cube3.model",
-    "cube4.model"
+    "cube4.model",
+    "sphere.model"
   };
   FILE *fp;
   int i, n = (sizeof fns / sizeof *fns);
@@ -31,8 +32,10 @@ void make_scene(void) {
   }
   for (i = 0; i < n; i++) {
     if ((fp = fopen(fns[i],"rb")) != NULL) {
-      object[nobjects++] = model_read(fp);
+      object[nobjects] = model_read(fp);
+      assert(object[nobjects]);
       fclose(fp);
+      nobjects++;
     }
     else
       fprintf(stderr, "fopen error : %s\n", fns[nobjects]);
