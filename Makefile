@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-O4 -Wall -Wextra -pedantic -ansi -msse3 `pkg-config --cflags xcb`
+CFLAGS=-O3 -Wall -Wextra -pedantic -ansi -msse3 -ffast-math -freciprocal-math `pkg-config --cflags xcb`
 LIBS=-lm `pkg-config --libs xcb`
 
 all: gk2010
