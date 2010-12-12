@@ -114,7 +114,7 @@ model *model_read(FILE *f) {
         assert(m->halfedges != NULL);
         m->nsurfaces = atoi(s+1);
         assert(m->nsurfaces > 0);
-        m->surfaces = malloc(j * sizeof *m->surfaces);
+        m->surfaces = malloc(m->nsurfaces * sizeof *m->surfaces);
         for (i = 0; i < m->nsurfaces; i++) {
           halfedge *a, *b;
           int k;
