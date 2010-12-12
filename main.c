@@ -63,6 +63,22 @@ short sutherland(point p) {
   return c;
 }
 
+/* Get orientation of surface */
+float surforient(surface *s) {
+  point a, b, c;
+  float x1, x2, x3, y1, y2, y3;
+  a = s->edge->vertex->camera;
+  b = s->edge->next->vertex->camera;
+  c = s->edge->next->next->vertex->camera;
+  x1 = POINT_GET(a,0);
+  y1 = POINT_GET(a,1);
+  x2 = POINT_GET(b,0);
+  y2 = POINT_GET(b,1);
+  x3 = POINT_GET(c,0);
+  y3 = POINT_GET(c,1);
+  return x2*y3-x1*y3-x3*y2+x1*y2+x3*y1-x2*y1;
+}
+
 /* Draw wire-frame without occlusions */
 /* this code relies on structure of model */
 void draw_scene(void) {
@@ -84,6 +100,7 @@ void draw_scene(void) {
     for (k = 0; k < object[i]->nsurfaces; k++) {
       halfedge *x, *e = object[i]->surfaces[k].edge;
       x = e;
+      if (surforient(object[i]->surfaces+k) < 0)
       do {
         union { scalar w; short c; } ac, bc;
         point a = x->vertex->camera;
