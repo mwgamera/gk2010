@@ -64,6 +64,7 @@ short sutherland(point p) {
 }
 
 /* Draw wire-frame without occlusions */
+/* this code relies on structure of model */
 void draw_scene(void) {
   int i, k;
   tmatrix p = camera_transform();
@@ -74,25 +75,29 @@ void draw_scene(void) {
     /* calculate and store code of each point */
     for (k = 0; k < object[i]->nvertices; k++) {
       union { scalar w; short c; } code;
-      code.c = sutherland(object[i]->pvertex[k]);
-      POINT_SET(object[i]->pvertex[k], 3, code.w);
+      code.c = sutherland(object[i]->vertices[k].camera);
+      POINT_SET(object[i]->vertices[k].camera, 3, code.w);
     }
   }
   gui_clear();
   for (i = 0; i < nobjects; i++) {
-    /* wire-frame specific code, relies on structure of model */
-    for (k = 0; k < object[i]->nedges; k++) {
-      union { scalar w; short c; } ac, bc;
-      point a = object[i]->pvertex[object[i]->edge[(k<<1)+0]];
-      point b = object[i]->pvertex[object[i]->edge[(k<<1)+1]];
-      ac.w = POINT_GET(a,3);
-      bc.w = POINT_GET(b,3);
-      if (!(ac.c & bc.c) && !((ac.c | bc.c) & 0x10))
-        gui_draw_line(
-            POINT_GET(a,0),
-            POINT_GET(a,1),
-            POINT_GET(b,0),
-            POINT_GET(b,1));
+    for (k = 0; k < object[i]->nsurfaces; k++) {
+      halfedge *x, *e = object[i]->surfaces[k].edge;
+      x = e;
+      do {
+        union { scalar w; short c; } ac, bc;
+        point a = x->vertex->camera;
+        point b = x->pair->vertex->camera;
+        ac.w = POINT_GET(a,3);
+        bc.w = POINT_GET(b,3);
+        if (!(ac.c & bc.c) && !((ac.c | bc.c) & 0x10))
+          gui_draw_line(
+              POINT_GET(a,0),
+              POINT_GET(a,1),
+              POINT_GET(b,0),
+              POINT_GET(b,1));
+        x = x->next;
+      } while (x != e);
     }
   }
   gui_update();
