@@ -167,21 +167,6 @@ model *model_read(FILE *f) {
   return m;
 }
 
-/* FIXME DEBUG */
-int main() {
-  model *m;
-  FILE *fp;
-  fp = fopen("cube1.model","r");
-  assert(fp);
-  m = model_read(fp);
-  fclose(fp);
-  assert(m);
-  model_free(m);
-  return 0;
-}
-/* FIXME END OF DEBUG */
-
-
 void model_transform(tmatrix a, model *m) {
   int i = m->nvertices;
   vertex *vs = m->vertices;
