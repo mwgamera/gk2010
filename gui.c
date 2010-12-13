@@ -274,43 +274,44 @@ gui_event_t gui_poll() {
   return r;
 }
 
+/* Change color of graphic context */
+#define COLOR8BIT(x) ((x)|(x)<<8)
+static xcb_gcontext_t _draw_gc_color(uint16_t r, uint16_t g, uint16_t b) {
+  static uint32_t last_pixel = 0;
+  uint32_t pixel = get_color_pixel(r, g, b);
+  if (pixel == last_pixel) return draw_gc;
+  xcb_change_gc(xc, draw_gc, XCB_GC_FOREGROUND, &pixel);
+  last_pixel = pixel;
+  return draw_gc;
+}
+
 /* Clear screen */
 xcb_gcontext_t gui_gc_clear = 0;
 void gui_clear() {
   xcb_rectangle_t rect;
-  uint32_t mask = XCB_GC_FOREGROUND;
-  uint32_t value;
-  assert(xc);
-  xcb_change_gc(xc, draw_gc, mask, &value);
   rect.x = 0;
   rect.y = 0;
   rect.width = width;
   rect.height = height;
-  xcb_poly_fill_rectangle(xc, buffer, draw_gc, 1, &rect);
+  xcb_poly_fill_rectangle(xc, buffer,
+      _draw_gc_color(0, 0, 0), 1, &rect);
 }
 
 /* Draw line */
 void gui_draw_line(int x0, int y0, int x1, int y1) {
   xcb_point_t p[2];
-  uint32_t mask = XCB_GC_FOREGROUND;
-  uint32_t value;
-  assert(xc);
-  value = xs->white_pixel;
-  xcb_change_gc(xc, draw_gc, mask, &value);
   p[0].x = x0; p[0].y = y0;
   p[1].x = x1; p[1].y = y1;
-  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer, draw_gc, 2, p);
+  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer,
+      _draw_gc_color(0xFFFF, 0xFFFF, 0xFFFF), 2, p);
 }
 
-void gui_draw_line_color(int x0, int y0, int x1, int y1, char r, char g, char b) {
+void gui_draw_line_color(int x0, int y0, int x1, int y1,
+    uint8_t r, uint8_t g, uint8_t b) {
   xcb_point_t p[2];
-  uint32_t mask = XCB_GC_FOREGROUND;
-  uint32_t value;
-  assert(xc);
-  value = get_color_pixel((uint16_t)r<<8, (uint16_t)g<<8, (uint16_t)b<<8);
-  xcb_change_gc(xc, draw_gc, mask, &value);
   p[0].x = x0; p[0].y = y0;
   p[1].x = x1; p[1].y = y1;
-  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer, draw_gc, 2, p);
+  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer,
+      _draw_gc_color(COLOR8BIT(r), COLOR8BIT(g), COLOR8BIT(b)), 2, p);
 }
 
