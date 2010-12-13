@@ -49,8 +49,7 @@ gui_event_t gui_poll(void);
 
 /* Darwing functions */
 void gui_clear(void);
-void gui_draw_line(int,int,int,int);
-
-/* TODO: colors */
+void gui_draw_line(int,int,int,int); 
+void gui_draw_line_color(int,int,int,int, char,char,char);
 
 #endif/*_GUI_H_*/

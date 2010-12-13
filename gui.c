@@ -1,4 +1,5 @@
 #include "gui.h"
+#include "colors.h"
 #include <xcb/xcb.h>
 #include <X11/keysym.h>
 #include <stdlib.h>
@@ -69,6 +70,7 @@ int gui_init(int w, int h) {
   _init_keymap(xc);
   xcb_map_window(xc, win);
   xcb_flush(xc);
+  colors_init(xc, xs->default_colormap);
   return 0;
 }
 
@@ -294,6 +296,18 @@ void gui_draw_line(int x0, int y0, int x1, int y1) {
   uint32_t value;
   assert(xc);
   value = xs->white_pixel;
+  xcb_change_gc(xc, draw_gc, mask, &value);
+  p[0].x = x0; p[0].y = y0;
+  p[1].x = x1; p[1].y = y1;
+  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer, draw_gc, 2, p);
+}
+
+void gui_draw_line_color(int x0, int y0, int x1, int y1, char r, char g, char b) {
+  xcb_point_t p[2];
+  uint32_t mask = XCB_GC_FOREGROUND;
+  uint32_t value;
+  assert(xc);
+  value = get_color_pixel((uint16_t)r<<8, (uint16_t)g<<8, (uint16_t)b<<8);
   xcb_change_gc(xc, draw_gc, mask, &value);
   p[0].x = x0; p[0].y = y0;
   p[1].x = x1; p[1].y = y1;
