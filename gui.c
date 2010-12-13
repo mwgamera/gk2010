@@ -9,7 +9,7 @@ static xcb_screen_t *xs = NULL;
 static xcb_window_t win;
 static xcb_keysym_t keymap[256];
 static xcb_pixmap_t buffer;
-static xcb_gcontext_t blit_gc;
+static xcb_gcontext_t blit_gc, draw_gc;
 static int width, height;
 
 /* Cerate main window with proper attributes */
@@ -49,8 +49,10 @@ static xcb_keysym_t *_init_keymap(xcb_connection_t *xc) {
 static void _init_buf(xcb_connection_t *xc, xcb_screen_t *xs, int w, int h) {
   buffer  = xcb_generate_id(xc);
   blit_gc = xcb_generate_id(xc);
+  draw_gc = xcb_generate_id(xc);
   xcb_create_pixmap(xc, xs->root_depth, buffer, xs->root, w, h);
   xcb_create_gc(xc, blit_gc, xs->root, 0, NULL);
+  xcb_create_gc(xc, draw_gc, buffer, 0, NULL);
   gui_clear();
 }
 
@@ -75,6 +77,7 @@ int gui_fin() {
   assert(xc);
   if (buffer) xcb_free_pixmap(xc, buffer);
   if (blit_gc) xcb_free_gc(xc, blit_gc);
+  if (draw_gc) xcb_free_gc(xc, draw_gc);
   xcb_flush(xc);
   xcb_disconnect(xc);
   xc = NULL;
@@ -270,36 +273,30 @@ gui_event_t gui_poll() {
 }
 
 /* Clear screen */
+xcb_gcontext_t gui_gc_clear = 0;
 void gui_clear() {
   xcb_rectangle_t rect;
-  xcb_gcontext_t gc; /* FIXME: gc */
   uint32_t mask = XCB_GC_FOREGROUND;
   uint32_t value;
   assert(xc);
-  gc = xcb_generate_id(xc);
-  value = xs->black_pixel;
-  xcb_create_gc(xc, gc, buffer, mask, &value);
+  xcb_change_gc(xc, draw_gc, mask, &value);
   rect.x = 0;
   rect.y = 0;
   rect.width = width;
   rect.height = height;
-  xcb_poly_fill_rectangle(xc, buffer, gc, 1, &rect);
-  xcb_free_gc(xc, gc);
+  xcb_poly_fill_rectangle(xc, buffer, draw_gc, 1, &rect);
 }
 
 /* Draw line */
 void gui_draw_line(int x0, int y0, int x1, int y1) {
   xcb_point_t p[2];
-  xcb_gcontext_t gc; /* FIXME: gc */
   uint32_t mask = XCB_GC_FOREGROUND;
   uint32_t value;
   assert(xc);
-  gc = xcb_generate_id(xc);
   value = xs->white_pixel;
-  xcb_create_gc(xc, gc, buffer, mask, &value);
+  xcb_change_gc(xc, draw_gc, mask, &value);
   p[0].x = x0; p[0].y = y0;
   p[1].x = x1; p[1].y = y1;
-  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer, gc, 2, p);
-  xcb_free_gc(xc, gc);
+  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer, draw_gc, 2, p);
 }
 
