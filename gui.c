@@ -286,7 +286,6 @@ static xcb_gcontext_t _draw_gc_color(uint16_t r, uint16_t g, uint16_t b) {
 }
 
 /* Clear screen */
-xcb_gcontext_t gui_gc_clear = 0;
 void gui_clear() {
   xcb_rectangle_t rect;
   rect.x = 0;
