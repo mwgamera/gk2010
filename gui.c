@@ -299,6 +299,7 @@ void gui_clear() {
 /* Draw line */
 void gui_draw_line(int x0, int y0, int x1, int y1) {
   xcb_point_t p[2];
+  assert(xc);
   p[0].x = x0; p[0].y = y0;
   p[1].x = x1; p[1].y = y1;
   xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer,
@@ -308,9 +309,70 @@ void gui_draw_line(int x0, int y0, int x1, int y1) {
 void gui_draw_line_color(int x0, int y0, int x1, int y1,
     uint8_t r, uint8_t g, uint8_t b) {
   xcb_point_t p[2];
+  assert(xc);
   p[0].x = x0; p[0].y = y0;
   p[1].x = x1; p[1].y = y1;
   xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer,
       _draw_gc_color(COLOR8BIT(r), COLOR8BIT(g), COLOR8BIT(b)), 2, p);
+}
+
+/* Polygons */
+struct _gui_polygon {
+  xcb_point_t *vertices;
+  int size, length;
+};
+
+gui_polygon *gui_polygon_alloc(int size) {
+  gui_polygon *poly;
+  assert(size > 0);
+  poly = malloc(sizeof*poly);
+  if (poly == NULL) return NULL;
+  poly->vertices = malloc(size * sizeof*poly->vertices);
+  if (poly->vertices == NULL) {
+    free(poly);
+    return NULL;
+  }
+  poly->size = size;
+  poly->length = 0;
+  return poly;
+}
+
+void gui_polygon_free(gui_polygon *poly) {
+  assert(poly);
+  assert(poly->vertices);
+  free(poly->vertices);
+  free(poly);
+}
+
+void gui_polygon_clear(gui_polygon *poly) {
+  assert(poly);
+  poly->length = 0;
+}
+
+int gui_polygon_add(gui_polygon *poly, int x, int y) {
+  assert(poly);
+  if (poly->length >= poly->size) {
+    int ns = poly->size << 1;
+    void *p = realloc(poly->vertices, ns * sizeof*poly->vertices);
+    if (p == NULL) return -1;
+    poly->vertices = p;
+    poly->size = ns;
+  }
+  assert(poly->length < poly->size);
+  poly->vertices[poly->length].x = x;
+  poly->vertices[poly->length].y = y;
+  poly->length++;
+  return 0;
+}
+
+void gui_draw_polygon_color(gui_polygon *poly,
+    uint8_t r, uint8_t g, uint8_t b) {
+  assert(xc);
+  assert(poly);
+  assert(poly->length > 2); /* convex shape */
+  xcb_fill_poly(xc, buffer,
+      _draw_gc_color(COLOR8BIT(r), COLOR8BIT(g), COLOR8BIT(b)),
+      XCB_POLY_SHAPE_CONVEX, XCB_COORD_MODE_ORIGIN,
+      poly->length, poly->vertices);
 }
 

@@ -53,4 +53,17 @@ void gui_draw_line(int,int,int,int);
 void gui_draw_line_color(int,int,int,int,
     unsigned char, unsigned char, unsigned char);
 
+/* Polygon structure */
+/* Proxy to hide structure of XCB data types and yet copy vertices once.
+ * A function call might be optimized out by compiler when doing full
+ * program optimization yielding good performance.  */
+typedef struct _gui_polygon gui_polygon;
+
+gui_polygon *gui_polygon_alloc(int);
+void gui_polygon_free(gui_polygon*);
+void gui_polygon_clear(gui_polygon*);
+int gui_polygon_add(gui_polygon*, int, int);
+void gui_draw_polygon_color(gui_polygon*,
+    unsigned char, unsigned char, unsigned char);
+
 #endif/*_GUI_H_*/
