@@ -14,11 +14,15 @@
 int nobjects = 0;
 model **object = NULL;
 
-/* Polygon do draw */
+/* Polygon to draw */
 gui_polygon *poly;
+
+/* List of visible surfaces to sort */
+surface **vorder;
 
 /* Load scene */
 void make_scene(void) {
+  /* list of models to load */
   static char *fns[] = {
     "cube1.model",
     "cube2.model",
@@ -29,11 +33,13 @@ void make_scene(void) {
   FILE *fp;
   int i, n = (sizeof fns / sizeof *fns);
   assert(nobjects == 0);
+  /* allocate list of objects */
   object = malloc(n * sizeof*object);
   if (object == NULL) {
     fprintf(stderr, "malloc error\n");
     return;
   }
+  /* read models of objects */
   for (i = 0; i < n; i++) {
     if ((fp = fopen(fns[i],"rb")) != NULL) {
       object[nobjects] = model_read(fp);
@@ -46,6 +52,11 @@ void make_scene(void) {
   }
   assert(nobjects <= i);
   assert(nobjects > 0);
+  /* count surfaces and allocate sort list */
+  for (n = i = 0; i < nobjects; i++)
+    n += object[i]->nsurfaces;
+  vorder = malloc(n * sizeof*vorder);
+  assert(vorder);
 }
 
 /* Clean up scene */
@@ -54,6 +65,7 @@ void clean_scene(void) {
   while (nobjects--)
     model_free(object[nobjects]);
   free(object);
+  free(vorder);
 }
 
 /* Get 2.5D Cohen-Sutherland clipping code */
@@ -83,10 +95,10 @@ float surforient(surface *s) {
   return x2*y3-x1*y3-x3*y2+x1*y2+x3*y1-x2*y1;
 }
 
-/* Draw wire-frame without occlusions */
-/* this code relies on structure of model */
+/* Render scene */
 void draw_scene(void) {
-  int i, k;
+  int i, j, k;
+  union { scalar w; short c; } code;
   tmatrix p = camera_transform();
 
   /* transform all points in all objects */
@@ -94,36 +106,46 @@ void draw_scene(void) {
     model_transform(p, object[i]);
     /* calculate and store code of each point */
     for (k = 0; k < object[i]->nvertices; k++) {
-      union { scalar w; short c; } code;
       code.c = sutherland(object[i]->vertices[k].camera);
       POINT_SET(object[i]->vertices[k].camera, 3, code.w);
     }
   }
-  gui_clear();
+  /* prepare list of possibly visible surfaces */
+  j = 0;
   for (i = 0; i < nobjects; i++) {
     for (k = 0; k < object[i]->nsurfaces; k++) {
+      /* orientation based visibility */
       if (surforient(object[i]->surfaces+k) < 0) {
         halfedge *e = object[i]->surfaces[k].edge;
         halfedge *x = e;
-        short d0 = ~0, d1 = 0; /* Cohen-Sutherland visibility */
-        gui_polygon_clear(poly);
+        short d0 = ~0, d1 = 0; 
         do {
-          union { scalar w; short c; } code;
           point vx = x->vertex->camera;
           code.w = POINT_GET(vx, 3);
           d0 &= code.c;
           d1 |= code.c;
-          gui_polygon_add(poly, POINT_GET(vx,0), POINT_GET(vx,1));
           x = x->next;
         } while (x != e);
+        /* Cohen-Sutherland-like visibility */
         if (!d0 && !(d1 & 0x10))
-          gui_draw_polygon_color(poly,
-              /* FIXME: make light-like coloring */
-              0x7F,
-              255*(object[i]->nsurfaces-k)/object[i]->nsurfaces,
-              255*i/nobjects);
+          vorder[j++] = object[i]->surfaces+k;
       }
     }
+  }
+  /* TODO: sort surfaces into drawing order */
+  /* draw surfaces on screen in order */
+  gui_clear();
+  while (j--) {
+    halfedge *e = vorder[j]->edge;
+    halfedge *x = e;
+    gui_polygon_clear(poly);
+    do {
+      point vx = x->vertex->camera;
+      gui_polygon_add(poly, POINT_GET(vx,0), POINT_GET(vx,1));
+      x = x->next;
+    } while (x != e);
+    gui_draw_polygon_color(poly,
+        0x7F, (255*j/nobjects) &0xFF, 255); /* FIXME */
   }
   gui_update();
 }
@@ -156,8 +178,8 @@ int main() {
   camera_reset(WIDTH, HEIGHT, 1);
   poly = gui_polygon_alloc(3);
   draw_scene();
-  fprintf(stderr, "Ready.\n");
   scheduler_register(gui_fd(), SCHEDULER_FD_READ, &loop, NULL);
+  fprintf(stderr, "Ready.\n");
   scheduler_main();
   gui_fin();
   clean_scene();
