@@ -175,8 +175,6 @@ void model_transform(tmatrix a, model *m) {
   assert(vs != NULL);
   while (i--) {
     p = transform(a, vs->world);
-    if (POINT_GET(p, 2) > 0)
-      p = normalize(p);
     vs->camera = p;
     vs++;
   }

@@ -95,6 +95,30 @@ float surforient(surface *s) {
   return x2*y3-x1*y3-x3*y2+x1*y2+x3*y1-x2*y1;
 }
 
+/* Compare two surfaces in drawing order */
+int surfcmp(const void *a, const void *b) {
+  halfedge *e;
+  scalar az1, az2, az3;
+  scalar bz1, bz2, bz3;
+
+  e = (*(surface**)a)->edge;
+  az1 = POINT_GET(e->vertex->camera,2);
+  e = e->next;
+  az2 = POINT_GET(e->vertex->camera,2);
+  e = e->next;
+  az3 = POINT_GET(e->vertex->camera,2);
+
+  e = (*(surface**)b)->edge;
+  bz1 = POINT_GET(e->vertex->camera,2);
+  e = e->next;
+  bz2 = POINT_GET(e->vertex->camera,2);
+  e = e->next;
+  bz3 = POINT_GET(e->vertex->camera,2);
+
+  /* barycenter depth difference */
+  return (az1+az2+az3 -bz1-bz2-bz3);
+}
+
 /* Render scene */
 void draw_scene(void) {
   int i, j, k;
@@ -106,8 +130,12 @@ void draw_scene(void) {
     model_transform(p, object[i]);
     /* calculate and store code of each point */
     for (k = 0; k < object[i]->nvertices; k++) {
+      scalar z = POINT_GET(object[i]->vertices[k].camera, 2);
+      if (z > 0)
+        object[i]->vertices[k].camera = normalize(object[i]->vertices[k].camera);
       code.c = sutherland(object[i]->vertices[k].camera);
       POINT_SET(object[i]->vertices[k].camera, 3, code.w);
+      POINT_SET(object[i]->vertices[k].camera, 2, z);
     }
   }
   /* prepare list of possibly visible surfaces */
@@ -132,7 +160,8 @@ void draw_scene(void) {
       }
     }
   }
-  /* TODO: sort surfaces into drawing order */
+  /* sort surfaces into drawing order */
+  qsort(vorder, j, sizeof*vorder, &surfcmp);
   /* draw surfaces on screen in order */
   gui_clear();
   while (j--) {
@@ -145,7 +174,7 @@ void draw_scene(void) {
       x = x->next;
     } while (x != e);
     gui_draw_polygon_color(poly,
-        0x7F, (255*j/nobjects) &0xFF, 255); /* FIXME */
+        0x00, (255*j/nobjects)&0xFF, 0xFF); /* FIXME */
   }
   gui_update();
 }
