@@ -10,8 +10,12 @@
 #define WIDTH  640
 #define HEIGHT 480
 
+/* Scene */
 int nobjects = 0;
 model **object = NULL;
+
+/* Polygon do draw */
+gui_polygon *poly;
 
 /* Load scene */
 void make_scene(void) {
@@ -98,23 +102,27 @@ void draw_scene(void) {
   gui_clear();
   for (i = 0; i < nobjects; i++) {
     for (k = 0; k < object[i]->nsurfaces; k++) {
-      halfedge *x, *e = object[i]->surfaces[k].edge;
-      x = e;
-      if (surforient(object[i]->surfaces+k) < 0)
-      do {
-        union { scalar w; short c; } ac, bc;
-        point a = x->vertex->camera;
-        point b = x->pair->vertex->camera;
-        ac.w = POINT_GET(a,3);
-        bc.w = POINT_GET(b,3);
-        if (!(ac.c & bc.c) && !((ac.c | bc.c) & 0x10))
-          gui_draw_line(
-              POINT_GET(a,0),
-              POINT_GET(a,1),
-              POINT_GET(b,0),
-              POINT_GET(b,1));
-        x = x->next;
-      } while (x != e);
+      if (surforient(object[i]->surfaces+k) < 0) {
+        halfedge *e = object[i]->surfaces[k].edge;
+        halfedge *x = e;
+        short d0 = ~0, d1 = 0; /* Cohen-Sutherland visibility */
+        gui_polygon_clear(poly);
+        do {
+          union { scalar w; short c; } code;
+          point vx = x->vertex->camera;
+          code.w = POINT_GET(vx, 3);
+          d0 &= code.c;
+          d1 |= code.c;
+          gui_polygon_add(poly, POINT_GET(vx,0), POINT_GET(vx,1));
+          x = x->next;
+        } while (x != e);
+        if (!d0 && !(d1 & 0x10))
+          gui_draw_polygon_color(poly,
+              /* FIXME: make light-like coloring */
+              0x7F,
+              255*(object[i]->nsurfaces-k)/object[i]->nsurfaces,
+              255*i/nobjects);
+      }
     }
   }
   gui_update();
@@ -146,10 +154,13 @@ int main() {
   gui_init(WIDTH, HEIGHT);
   make_scene();
   camera_reset(WIDTH, HEIGHT, 1);
+  poly = gui_polygon_alloc(3);
   draw_scene();
+  fprintf(stderr, "Ready.\n");
   scheduler_register(gui_fd(), SCHEDULER_FD_READ, &loop, NULL);
   scheduler_main();
   gui_fin();
   clean_scene();
+  gui_polygon_free(poly);
   return 0;
 }
