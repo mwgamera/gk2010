@@ -2,7 +2,7 @@
 #include <math.h>
 
 /* Focal length */
-#define DEFAULT_FLENGTH 300.f
+#define DEFAULT_FLENGTH 600.f
 static float fo;
 
 /* Tree of transformation matrices with validity flag */

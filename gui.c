@@ -1,4 +1,5 @@
 #include "gui.h"
+#include "colors.h"
 #include <xcb/xcb.h>
 #include <X11/keysym.h>
 #include <stdlib.h>
@@ -9,7 +10,7 @@ static xcb_screen_t *xs = NULL;
 static xcb_window_t win;
 static xcb_keysym_t keymap[256];
 static xcb_pixmap_t buffer;
-static xcb_gcontext_t blit_gc;
+static xcb_gcontext_t blit_gc, draw_gc;
 static int width, height;
 
 /* Cerate main window with proper attributes */
@@ -39,7 +40,7 @@ static xcb_keysym_t *_init_keymap(xcb_connection_t *xc) {
   reply = xcb_get_keyboard_mapping_reply(xc, xcb_get_keyboard_mapping(xc, 8, 248), NULL);
   syms = xcb_get_keyboard_mapping_keysyms(reply);
   l = xcb_get_keyboard_mapping_keysyms_length(reply);
-  for (i = 8, j = 0; j < l; j += reply->keysyms_per_keycode, i++)
+  for (i = 8, j = 0; i < 255 && j < l; j += reply->keysyms_per_keycode, i++)
     keymap[i] = syms[j];
   free(reply);
   return keymap;
@@ -49,8 +50,10 @@ static xcb_keysym_t *_init_keymap(xcb_connection_t *xc) {
 static void _init_buf(xcb_connection_t *xc, xcb_screen_t *xs, int w, int h) {
   buffer  = xcb_generate_id(xc);
   blit_gc = xcb_generate_id(xc);
+  draw_gc = xcb_generate_id(xc);
   xcb_create_pixmap(xc, xs->root_depth, buffer, xs->root, w, h);
   xcb_create_gc(xc, blit_gc, xs->root, 0, NULL);
+  xcb_create_gc(xc, draw_gc, buffer, 0, NULL);
   gui_clear();
 }
 
@@ -67,6 +70,7 @@ int gui_init(int w, int h) {
   _init_keymap(xc);
   xcb_map_window(xc, win);
   xcb_flush(xc);
+  colors_init(xc, xs->default_colormap);
   return 0;
 }
 
@@ -75,6 +79,7 @@ int gui_fin() {
   assert(xc);
   if (buffer) xcb_free_pixmap(xc, buffer);
   if (blit_gc) xcb_free_gc(xc, blit_gc);
+  if (draw_gc) xcb_free_gc(xc, draw_gc);
   xcb_flush(xc);
   xcb_disconnect(xc);
   xc = NULL;
@@ -269,37 +274,105 @@ gui_event_t gui_poll() {
   return r;
 }
 
+/* Change color of graphic context */
+#define COLOR8BIT(x) ((x)|(x)<<8)
+static xcb_gcontext_t _draw_gc_color(uint16_t r, uint16_t g, uint16_t b) {
+  static uint32_t last_pixel = 0;
+  uint32_t pixel = get_color_pixel(r, g, b);
+  if (pixel == last_pixel) return draw_gc;
+  xcb_change_gc(xc, draw_gc, XCB_GC_FOREGROUND, &pixel);
+  last_pixel = pixel;
+  return draw_gc;
+}
+
 /* Clear screen */
 void gui_clear() {
   xcb_rectangle_t rect;
-  xcb_gcontext_t gc; /* FIXME: gc */
-  uint32_t mask = XCB_GC_FOREGROUND;
-  uint32_t value;
-  assert(xc);
-  gc = xcb_generate_id(xc);
-  value = xs->black_pixel;
-  xcb_create_gc(xc, gc, buffer, mask, &value);
   rect.x = 0;
   rect.y = 0;
   rect.width = width;
   rect.height = height;
-  xcb_poly_fill_rectangle(xc, buffer, gc, 1, &rect);
-  xcb_free_gc(xc, gc);
+  xcb_poly_fill_rectangle(xc, buffer,
+      _draw_gc_color(0, 0, 0), 1, &rect);
 }
 
 /* Draw line */
 void gui_draw_line(int x0, int y0, int x1, int y1) {
   xcb_point_t p[2];
-  xcb_gcontext_t gc; /* FIXME: gc */
-  uint32_t mask = XCB_GC_FOREGROUND;
-  uint32_t value;
   assert(xc);
-  gc = xcb_generate_id(xc);
-  value = xs->white_pixel;
-  xcb_create_gc(xc, gc, buffer, mask, &value);
   p[0].x = x0; p[0].y = y0;
   p[1].x = x1; p[1].y = y1;
-  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer, gc, 2, p);
-  xcb_free_gc(xc, gc);
+  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer,
+      _draw_gc_color(0xFFFF, 0xFFFF, 0xFFFF), 2, p);
+}
+
+void gui_draw_line_color(int x0, int y0, int x1, int y1,
+    uint8_t r, uint8_t g, uint8_t b) {
+  xcb_point_t p[2];
+  assert(xc);
+  p[0].x = x0; p[0].y = y0;
+  p[1].x = x1; p[1].y = y1;
+  xcb_poly_line(xc, XCB_COORD_MODE_ORIGIN, buffer,
+      _draw_gc_color(COLOR8BIT(r), COLOR8BIT(g), COLOR8BIT(b)), 2, p);
+}
+
+/* Polygons */
+struct _gui_polygon {
+  xcb_point_t *vertices;
+  int size, length;
+};
+
+gui_polygon *gui_polygon_alloc(int size) {
+  gui_polygon *poly;
+  assert(size > 0);
+  poly = malloc(sizeof*poly);
+  if (poly == NULL) return NULL;
+  poly->vertices = malloc(size * sizeof*poly->vertices);
+  if (poly->vertices == NULL) {
+    free(poly);
+    return NULL;
+  }
+  poly->size = size;
+  poly->length = 0;
+  return poly;
+}
+
+void gui_polygon_free(gui_polygon *poly) {
+  assert(poly);
+  assert(poly->vertices);
+  free(poly->vertices);
+  free(poly);
+}
+
+void gui_polygon_clear(gui_polygon *poly) {
+  assert(poly);
+  poly->length = 0;
+}
+
+int gui_polygon_add(gui_polygon *poly, int x, int y) {
+  assert(poly);
+  if (poly->length >= poly->size) {
+    int ns = poly->size << 1;
+    void *p = realloc(poly->vertices, ns * sizeof*poly->vertices);
+    if (p == NULL) return -1;
+    poly->vertices = p;
+    poly->size = ns;
+  }
+  assert(poly->length < poly->size);
+  poly->vertices[poly->length].x = x;
+  poly->vertices[poly->length].y = y;
+  poly->length++;
+  return 0;
+}
+
+void gui_draw_polygon_color(gui_polygon *poly,
+    uint8_t r, uint8_t g, uint8_t b) {
+  assert(xc);
+  assert(poly);
+  assert(poly->length > 2); /* convex shape */
+  xcb_fill_poly(xc, buffer,
+      _draw_gc_color(COLOR8BIT(r), COLOR8BIT(g), COLOR8BIT(b)),
+      XCB_POLY_SHAPE_CONVEX, XCB_COORD_MODE_ORIGIN,
+      poly->length, poly->vertices);
 }
 

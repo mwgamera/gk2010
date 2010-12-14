@@ -1,0 +1,265 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[top=2cm, bottom=2cm, left=3.5cm, right=3.5cm]{geometry}
+\usepackage[polish,english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{polski}
+\usepackage{amsfonts}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+\author{Kacper Gutowski}
+\title{Projekt z~grafiki komputerowej\\*Kamera wirtualna: wire\dywiz frame}
+
+\begin{document}%
+\selectlanguage{polish}
+\maketitle
+
+\section{Wstęp}
+
+Celem projektu było stworzenie kamery wirtualnej, czyli programu pozwalającego
+oglądać obraz trójwymiarowej sceny. W~tej części projektu wymagana była jedynie
+implementacja podstawowych przekształceń geometrycznych i~wyświetlenie
+krawędzi obiektów (wire\dywiz frame) bez eliminacji elementów zasłoniętych.
+Kamera miała mieć możliwość poruszania się i~obracania we wszystkich kierunkach
+oraz zmiany ogniskowej (zoom).
+
+\section{Wybór rozwiązań}
+
+Program napisałem w~języku C89, ze względu na przenośność i~szybkość działania.
+Do wyświetlania wykorzystałem bibliotekę XCB, która jest interfejsem dla protokołu X,
+a~więc pozwala rysować linie i~poligony abstrahując od sprzętu i~jest uniwersalna
+dla wszystkich systemów POSIX.
+
+Opis sceny jest tablicą obiektów których definicje są wczytywane
+z~zewnętrznych plików przy starcie programu.
+W~pamięci obiekty przechowywane są jako chmura punktów oraz lista krawędzi pomiędzy nimi.
+Właściwe przekształcenia zrealizowałem jako operacje liniowe na współrzędnych jednorodnych.
+
+\section{Implementacja}
+
+\subsection{Macierze}
+Ponieważ wszystkie przekształcenia opierają się na operacjach macierzowych,
+kluczowym z~punktu widzenia funkcjonalności programu jest moduł implementujący te operacje.
+Potrzebne było: mnożenie macierzy $4\times4$ odpowiadające kompozycji przekształceń,
+mnożenie macierzy przez wektor z~prawej strony we współrzędnych jednorodnych,
+co odpowiada aplikacji przekształcenia, oraz normalizacja wektora po przekształceniu.
+Ponieważ nic więcej nie było potrzebne, zrealizowałem te operacje samodzielnie
+w~sposób pozwalający na ewentualną optymalizację.  Powstały dwie gałęzie kodu,
+jedna w~,,czystym'' przenośnym C, druga zoptymalizowana dla jednostek SSE.
+
+\subsection{GUI}
+Interfejs użytkownika składa się z~pojedynczego okienka zawierającego
+wyłącznie obraz sceny, bez żadnych dodatkowych kontrolek.
+Krawędziowy obraz sceny jest rysowany białą kreską na czarnym tle
+bez żadnych dodatkowych efektów.
+Dla uzyskania płynnego odświeżania zastosowałem buforowanie
+w~\mbox{PixMap} po stronie serwera X.\  Jest to rozwiązanie dużo prostsze
+niż wykorzystanie rozszerzenia DBE, a~skuteczne.
+
+Przy pomocy klawiatury lub myszy użytkownik może zmieniać położenie
+i~orientację kamery.
+Możliwe są następujące przesunięcia:
+,,do~przodu'' i~,,do~tyłu'' wzdłuż kierunku patrzenia, osi prostopadłej do ekranu,
+,,w~lewo'' i~,,w prawo'' wzdłuż osi równoległej do poziomej krawędzi okienka,
+oraz ,,w górę'' i~,,w~dół'' wzdłuż osi równoległej do pionowej krawędzi okienka.
+Dostępne obroty~to:
+,,obrót w~lewo'' i~,,obrót w~prawo'' wokół osi równoległej do pionowej krawędzi okienka (\textit{yaw}),
+,,obrót w~górę'' i~,,obrót w~dół'' wokół osi równoległej do poziomej krawędzi okienka (\textit{pitch}),
+oraz
+,,obrót zgodnie ze wskazówkami zegara'' i~,,przeciwnie do r.w.z.''\ wokół kierunku patrzenia
+(\textit{roll}).
+
+Ponieważ program nie miał być silnikiem gier, nie ma żadnych dodatkowych założeń o~wyglądzie świata.
+Dlatego żaden z~kierunków poza układem kamery nie jest wyróżniony.
+W~szczególności nie ma ustalonego kierunku do dołu (zwykle naturalnie wyróżniony przez grawitację).
+Efektem tego założenia jest aktywna kompozycja obrotów (wszystkie obroty są wokół \textsl{aktualnej}
+osi kamery), przez co sterowanie odbiega od tego znanego z~gier.
+
+\subsubsection{Klawiatura}
+\begin{itemize}
+    \addtolength{\itemsep}{-0.5\baselineskip}
+  \item zmiana położenia (przesunięcia)
+    \begin{itemize}
+      \item \texttt{W} lub $\uparrow$~--- do~przodu,
+      \item \texttt{S} lub $\downarrow$~--- do~tyłu,
+      \item \texttt{A} lub $\leftarrow$~--- w~lewo,
+      \item \texttt{D} lub $\rightarrow$~--- w~prawo,
+      \item \texttt{T}~--- w~górę,
+      \item \texttt{G}~--- w~dół;
+    \end{itemize}
+  \item zmiana orientacji (obroty)
+    \begin{itemize}
+      \item \texttt{H}~--- obrót w~lewo,
+      \item \texttt{J}~--- obrót w~dół,
+      \item \texttt{K}~--- obrót w~górę,
+      \item \texttt{L}~--- obrót w~prawo,
+      \item \texttt{<}~--- obrót zgodnie z~r.w.z.,
+      \item \texttt{>}~--- obrót przeciwny do r.w.z.;
+    \end{itemize}
+  \item zmiana długości ogniskowej (zoom)
+    \begin{itemize}
+      \item \texttt{+}~--- przybliżenie (zmniejszenie ogniskowej),
+      \item \texttt{-}~--- oddalenie (zwiększenie ogniskowej);
+    \end{itemize}
+  \item inne
+    \begin{itemize}
+      \item \texttt{ESC}~--- zakończenie programu.
+    \end{itemize}
+\end{itemize}
+
+\subsubsection{Mysz}
+Zmiana położenia możliwa jest poprzez ruch myszy przy wciśniętym
+prawym przycisku. Ruchy myszy odpowiadają przesunięciom w~płaszczyźnie równoległej
+do kierunku patrzenia i~poziomej krawędzi ekranu.
+
+Obroty kamery wykonywane są podczas ruchów myszą z~lewym przyciskiem wciśniętym.
+Ruch w~lewo\dywiz prawo odpowiada obrotom wokół pionowej osi kamery (\textit{yaw}),
+natomiast do~przodu\dywiz  do~tyłu odpowiada obrotom wokół poziomej (\textit{pitch}).
+Ruch w~innym kierunku powoduje odpowiednie złożenie tych obrotów.
+Jest to istotnie inne sterowanie niż typowe dla gier, gdzie ruch myszy odpowiada
+przesunięciu końca wektora wzroku po sferze $(\varphi,\vartheta)$.
+
+Ponadto możliwa jest zmiana ogniskowej poprzez ruch z~środkowym przyciskiem wciśniętym.
+
+\subsection{Kamera}
+Transformacja obiektów umieszczonych w~przestrzeni do układu ekranu wykonywana
+jest przy pomocy operacji liniowej zaaplikowanej do każdego wierzchołka.
+
+\subsubsection{Stan kamery}
+Ta pojedyncza operacja wyznaczana jest jako złożenie następujących:
+\begin{itemize}
+
+  \item translacja początku układu współrzędnych do położenia kamery
+    \[ A = \left( \begin{array}{cccc}
+      1 & 0 & 0 & -c_x \\*
+      0 & 1 & 0 & -c_y \\*
+      0 & 0 & 1 & -c_z \\*
+      0 & 0 & 0 & 1
+    \end{array} \right)
+    \;\;\mbox{gdzie}\;\;
+    c = \left( \begin{array}{c}
+      c_x \\ c_y \\ c_z
+    \end{array} \right)
+    \]
+    jest położeniem kamery we współrzędnych świata.
+
+  \item orientacja kamery
+    \[ B = \left( \begin{array}{cccc}
+      x_x & x_y & x_z & 0 \\*
+      y_x & y_y & y_z & 0 \\*
+      z_x & z_y & z_z & 0 \\*
+      0 & 0 & 0 & 1
+    \end{array} \right) 
+    \;\;\mbox{gdzie}\;\;
+    \overset{\rightarrow}{x} = \left( \begin{array}{c}
+      x_x \\ x_y \\ x_z
+    \end{array} \right),\;
+    \overset{\rightarrow}{y} = \left( \begin{array}{c}
+      y_x \\ y_y \\ y_z
+    \end{array} \right),\;
+    \overset{\rightarrow}{z} = \left( \begin{array}{c}
+      z_x \\ z_y \\ z_z
+    \end{array} \right),
+    \]
+    to wersory osi kamery, odpowiednio
+    $\overset{\rightarrow}{x}$ kierunek w~prawo,
+    $\overset{\rightarrow}{y}$ kierunek w~dół,
+    $\overset{\rightarrow}{x}$ kierunek patrzenia.\newline
+    $ |\overset{\rightarrow}{x}|=|\overset{\rightarrow}{y}|=|\overset{\rightarrow}{z}|=1 $.
+    $\;\; \overset{\rightarrow}{x}\cdot\overset{\rightarrow}{y} = 
+    \overset{\rightarrow}{y}\cdot\overset{\rightarrow}{z} = 
+    \overset{\rightarrow}{z}\cdot\overset{\rightarrow}{x} = 0$.
+    
+  \item rzut środkowy na płaszczyznę prostopadłą do kierunku patrzenia $\overset{\rightarrow}{z}$
+      \[ C = \left( \begin{array}{cccc}
+        1 & 0 & 0 & 0 \\*
+        0 & 1 & 0 & 0 \\*
+        0 & 0 & 1 & 0 \\*
+        0 & 0 & \frac{1}{f} & 0 \\*
+      \end{array} \right)
+      \]
+      gdzie $f$ jest długością ogniskowej. Odpowiada odległości rzutni od obserwatora.
+
+  \item dostosowanie do współrzędnych ekranowych
+    \[ C = \left( \begin{array}{cccc}
+      s_x & 0 & 0 & \frac{W}{2} \\*
+      0 & s_y & 0 & \frac{H}{2} \\*
+      0 & 0 & 1 & 0 \\*
+      0 & 0 & 0 & 1 \\*
+    \end{array} \right) \]
+    gdzie $W$ i~$H$ to odpowiednio szerokość i~wysokość okienka w~którym obraz ma być wyświetlony,
+    a~$s_x$ i~$s_y$ to skala w~pikselach na jednostkę.
+\end{itemize}
+
+Każdy punkt który ma zostać narysowany podlega transformacji macierzą
+\[ P = QR = (DC)(BA) \]
+Macierz ta musi zostać na nowo wyznaczona za każdym razem gdy zmieni się któryś z~parametrów,
+dlatego obliczenia zostały zorganizowane w~drzewo binarne z~bitem ważności
+zgodnie z~kolejnością oznaczoną powyżej ($Q=DC$, $R=BA$) i~tylko nieaktualne węzły
+są przeliczane na nowo.
+W~przypadku czterech macierzy nie przyspiesza to bardzo obliczeń,
+ale pozwala łatwo dodać nowe przekształcenia w~dowolnym miejscu bez konieczności
+przebudowy kodu.
+
+\subsubsection{Modyfikacja parametrów kamery}
+
+Modyfikacja długości ogniskowej wykonywana jest bezpośrednio:
+\mbox{$f_{t+1} = f_t + \Delta$} gdzie $\Delta$ to współczynnik ustalony przez GUI
+zależny od kierunku i~wielkości zmiany.
+
+Tak samo przesunięcia wzdłuż wersorów układu kamery wyznaczane są jako:
+$c_{t+1} = c_t + \overset{\rightarrow}{u}\cdot\Delta $
+gdzie $\overset{\rightarrow}{u}$ to, zależnie od wybranego kierunku,
+$\overset{\rightarrow}{x}$, $\overset{\rightarrow}{y}$ lub~$\overset{\rightarrow}{z}$.
+
+Obroty wokół osi kamery realizowane są przez:
+\[ B_{t+1} = \left(R(\overset{\rightarrow}{u},\varphi) {B_t}^T\right)^T
+= B_t {R(\overset{\rightarrow}{u},\varphi)}^T \]
+gdzie ${R(\overset{\rightarrow}{u},\varphi)}^T$ to transponowana macierz obrotu
+wokół osi $\overset{\rightarrow}{u}$ o~kąt $\varphi$.
+Konieczność transponowania wynika z~tego, że wersory
+$\overset{\rightarrow}{x}\overset{\rightarrow}{y}\overset{\rightarrow}{z}$
+znajdują się w~wierszach macierzy $B$, a~nie w~kolumnach.
+Żeby uniknąć tej dodatkowej pracy, korzystam z~wyżej przedstawionej zależności
+i~generuję od razu transponowaną macierz obrotu, którą mnożę prawostronnie.
+
+\subsection{Model}
+Modele obiektów są wczytywane z~plików.
+Użyłem prostego tekstowego formatu, w~którym
+po kolei zdefiniowane są wierzchołki,
+krawędzie (pary wierzchołków) i~powierzchnie (listy krawędzi).
+Taki format pozwala utworzyć dowolną reprezentację po wczytaniu.
+
+Aktualnie używana reprezentacja w~pamięci to prosta tablica krawędzi
+zawierająca pary numerów wierzchołków, oraz tablica wierzchołków,
+która zawiera ich współrzędne.
+Informacja o~powierzchniach jest na razie ignorowana, gdyż nie jest
+potrzebna do narysowania wire-frame.
+
+Przy rysowaniu wire\dywiz frame najpierw wszystkie wierzchołki są transformowane
+do układu ekranu, a~następnie lista krawędzi jest przeglądana po kolei
+i~krawędzie widoczne na ekranie są rysowane.
+Widoczność jest wyznaczana już po rzutowaniu przy użyciu dwuwymiarowego
+algorytmu Cohena\dywiz Sutherlanda z~modyfikacją pozwalającą łatwo ominąć
+krawędzie znajdujące się z~tyłu kamery.
+
+\subsection{Sfera}
+W~ramach projektu napisałem też prosty skrypt w~perlu,
+generujący aproksymację sfery dowolnej dokładności,
+trójkątami w~przybliżeniu równej wielkości.
+Skrypt zaczyna z~czworościanu foremnego wpisanego w~sferę
+a~następnie przez sukcesywny podział ścian na mniejsze trójkąty,
+w~kolejnych iteracjach zbliża się do sfery.
+Wynik działania skryptu formatowany jest w~postaci czytelnej
+dla głównego programu.
+
+Przykład takiej sfery po czterech iteracjach (powierzchnia z~514 trójkątów)
+jest widoczny na domyślnej scenie programu.
+
+\section{Podsumowanie i~wnioski}
+
+Program działa poprawnie i~zadowalająco szybko.
+
+\end{document}
+% vim: set spell spl=pl,en ft=tex :

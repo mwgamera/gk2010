@@ -86,14 +86,18 @@ for (my $i = 0; $i <= $#v; $i++) {
 }
 printf "e%d", $#e+1;
 for (my $i = 0; $i <= $#e; $i++) {
-  printf " %d %d", $e[$i]->[0], $e[$i]->[1];
+  print "\n" if ($i % 10) == 0;
+  print " "  if ($i % 10) != 0;
+  printf "%d %d", $e[$i]->[0], $e[$i]->[1];
 }
 print "\n";
-printf "s%d\n", $#s+1;
+printf "s%d", $#s+1;
 for (my $i = 0; $i <= $#s; $i++) {
+  print "\n" if ($i % 6) == 0;
+  print " "  if ($i % 6) != 0;
   printf "%d", $#{$s[$i]}+1;
   for (my $j = 0; $j <= $#{$s[$i]}; $j++) {
     printf " %d", $s[$i]->[$j];
   }
-  print "\n";
 }
+
