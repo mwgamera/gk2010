@@ -46,14 +46,14 @@ point direction(point v) {
 
 point sdotmul(scalar a, point b) {
   int i;
-  for (i = 0; i < 3; i++)
+  for (i = 0; i < 4; i++)
     b.d[i] *= a;
   return b;
 }
 
 point pdotmul(point a, point b) {
   int i;
-  for (i = 0; i < 3; i++)
+  for (i = 0; i < 4; i++)
     a.d[i] *= b.d[i];
   return a;
 }
