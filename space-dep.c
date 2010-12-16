@@ -51,10 +51,10 @@ point sdotmul(scalar a, point b) {
   return b;
 }
 
-point pdotmul(point a, point b) {
+scalar pdotmul(point a, point b) {
   int i;
+  scalar s = 0.f;
   for (i = 0; i < 4; i++)
-    a.d[i] *= b.d[i];
-  return a;
+    s += a.d[i] * b.d[i];
+  return s;
 }
-
