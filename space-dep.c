@@ -1,3 +1,4 @@
+#include "space.h"
 #include "space-dep.h"
 #include <math.h>
 
@@ -42,3 +43,18 @@ point direction(point v) {
   v.d[3] = 1;
   return v;
 }
+
+point sdotmul(scalar a, point b) {
+  int i;
+  for (i = 0; i < 3; i++)
+    b.d[i] *= a;
+  return b;
+}
+
+point pdotmul(point a, point b) {
+  int i;
+  for (i = 0; i < 3; i++)
+    a.d[i] *= b.d[i];
+  return a;
+}
+
