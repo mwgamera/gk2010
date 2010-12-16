@@ -1,3 +1,4 @@
+#include "space.h"
 #include "space-dep.h"
 
 static tmatrix tcompose_asm(tmatrix *a, tmatrix *b) {
@@ -206,6 +207,36 @@ static point direction_asm(point *v) {
 }
 
 point direction(point v) {
-  v = direction_asm(&v);
-  return v;
+  return direction_asm(&v);
 }
+
+static point sdotmul_asm(point *a, scalar *b) {
+  __asm__ (
+      "movss (%2), %%xmm0\n\t"
+      "unpcklps %%xmm0, %%xmm0\n\t"
+      "movlhps %%xmm0, %%xmm0\n\t"
+      "mulps (%1), %%xmm0\n\t"
+      "movaps %%xmm0, (%0)\n\t"
+      : "=r"(a) : "0"(a), "r"(b), "m"(*a), "m"(*b)
+      : "%xmm0");
+  return *a;
+}
+
+point sdotmul(scalar b, point a) {
+  return sdotmul_asm(&a, &b);
+}
+
+static point pdotmul_asm(point *a, point *b) {
+  __asm__ (
+      "movaps (%1), %%xmm0\n\t"
+      "mulps (%2), %%xmm0\n\t"
+      "movaps %%xmm0, (%0)\n\t"
+      : "=r"(a) : "0"(a), "r"(b), "m"(*a), "m"(*b)
+      : "%xmm0");
+  return *a;
+}
+
+point pdotmul(point a, point b) {
+  return pdotmul_asm(&a, &b);
+}
+

@@ -35,4 +35,8 @@ point normalize(point);
 /* Versor of a vector */
 point direction(point);
 
+/* Scalar products */
+point sdotmul(scalar,point);
+point pdotmul(point,point);
+
 #endif/*_SPACE_H_*/
