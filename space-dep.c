@@ -245,11 +245,42 @@ scalar pdotmul(point a, point b) {
   return pdotmul_asm(&c, &a, &b);
 }
 
+static void mtr3(point *a, point *b, point *c) {
+  /* transpose 3x3 matrix */
+  __asm__ (
+      "movaps (%6), %%xmm0\n\t" 
+      "movaps (%7), %%xmm1\n\t" 
+      "movaps (%8), %%xmm2\n\t" 
+
+      "movaps %%xmm0, %%xmm3\n\t"
+      "unpcklps %%xmm2, %%xmm0\n\t"
+      "unpckhps %%xmm2, %%xmm3\n\t"
+
+      "movaps %%xmm1, %%xmm2\n\t"
+      "unpcklps %%xmm1, %%xmm1\n\t"
+      "unpckhps %%xmm2, %%xmm2\n\t"
+
+      "unpcklps %%xmm2, %%xmm3\n\t"
+      "movaps %%xmm0, %%xmm2\n\t"
+      "unpcklps %%xmm1, %%xmm0\n\t"
+      "unpckhps %%xmm1, %%xmm2\n\t"
+
+      "movaps %%xmm0, (%0)\n\t"
+      "movaps %%xmm2, (%1)\n\t"
+      "movaps %%xmm3, (%2)\n\t"
+
+      : "=r"(a), "=r"(b), "=r"(c),
+        "=m"(*a), "=m"(*b), "=m"(*c)
+      : "0"(a),  "1"(b), "2"(c),
+        "m"(*a), "m"(*b), "m"(*c)
+      : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
+}
+
 static void det3(scalar *d, point *a, point *b, point *c) {
   /* determinant of a 3x3 matrix given its three vectors */
   __asm__ (
-      "movaps (%2), %%xmm0\n\t"
-      "movaps (%3), %%xmm2\n\t"
+      "movaps (%3), %%xmm0\n\t"
+      "movaps (%4), %%xmm2\n\t"
       "movaps %%xmm0, %%xmm1\n\t"
       "movaps %%xmm2, %%xmm3\n\t"
 
@@ -262,14 +293,14 @@ static void det3(scalar *d, point *a, point *b, point *c) {
       "mulps %%xmm3, %%xmm1\n\t"
 
       "subps %%xmm1, %%xmm0\n\t"
-      "mulps (%1), %%xmm0\n\t"
+      "mulps (%2), %%xmm0\n\t"
 
       "movhlps %%xmm0, %%xmm1\n\t"
       "haddps %%xmm0, %%xmm0\n\t"
       "addss %%xmm1, %%xmm0\n\t"
 
       "movss %%xmm0, (%0)\n\t"
-      : "=r"(d)
+      : "=r"(d), "=m"(*d)
       : "r"(a), "r"(b), "r"(c), "0"(d),
         "m"(*a), "m"(*b), "m"(*c), "m"(*d)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
@@ -277,6 +308,7 @@ static void det3(scalar *d, point *a, point *b, point *c) {
 
 point pointplane(point a, point b, point c) {
   point plane, I = {{ 1, 1, 1 }};
+  mtr3(&a, &b, &c);
   det3(&plane.d[0], &I, &b, &c);
   det3(&plane.d[1], &a, &I, &c);
   det3(&plane.d[2], &a, &b, &I);
