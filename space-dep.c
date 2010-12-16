@@ -191,16 +191,17 @@ static point direction_asm(point *v) {
       "movaps (%1), %%xmm0\n\t"
       "movaps (%1), %%xmm2\n\t"
 
-      "mulps %%xmm0, %%xmm0\n\t"
+      "mulps   %%xmm0, %%xmm0\n\t"
       "movhlps %%xmm0, %%xmm1\n\t"
-      "haddps %%xmm0, %%xmm0\n\t"
-      "addss %%xmm1, %%xmm0\n\t"
+      "haddps  %%xmm0, %%xmm0\n\t"
+      "addss   %%xmm1, %%xmm0\n\t"
       "rsqrtss %%xmm0, %%xmm0\n\t"
-      "shufps $0x00, %%xmm0, %%xmm0\n\t"
-      "mulps %%xmm0, %%xmm2\n\t"
+      "shufps   $0x00, %%xmm0, %%xmm0\n\t"
+      "mulps   %%xmm0, %%xmm2\n\t"
 
-      "movaps %%xmm2, (%0)\n\t"
-      "mov %3, 12(%0)"
+      "movaps  %%xmm2, (%0)\n\t"
+      "mov         %3, 12(%0)"
+
       : "=r"(v) : "0"(v), "m"(*v), "r"(1.0f)
       : "%eax", "%xmm0", "%xmm1", "%xmm2");
   return *v;
@@ -212,11 +213,11 @@ point direction(point v) {
 
 static point sdotmul_asm(point *a, scalar *b) {
   __asm__ (
-      "movss (%2), %%xmm0\n\t"
+      "movss      (%2), %%xmm0\n\t"
       "unpcklps %%xmm0, %%xmm0\n\t"
-      "movlhps %%xmm0, %%xmm0\n\t"
-      "mulps (%1), %%xmm0\n\t"
-      "movaps %%xmm0, (%0)\n\t"
+      "movlhps  %%xmm0, %%xmm0\n\t"
+      "mulps      (%1), %%xmm0\n\t"
+      "movaps   %%xmm0, (%0)\n\t"
       : "=r"(a) : "0"(a), "r"(b), "m"(*a), "m"(*b)
       : "%xmm0");
   return *a;
@@ -228,11 +229,11 @@ point sdotmul(scalar b, point a) {
 
 static scalar pdotmul_asm(scalar *c, point *a, point *b) {
   __asm__ (
-      "movaps (%1), %%xmm0\n\t"
-      "mulps (%2), %%xmm0\n\t"
+      "movaps   (%1), %%xmm0\n\t"
+      "mulps    (%2), %%xmm0\n\t"
       "haddps %%xmm0, %%xmm0\n\t"
       "haddps %%xmm0, %%xmm0\n\t"
-      "movss %%xmm0, (%0)\n\t"
+      "movss  %%xmm0, (%0)\n\t"
       : "=r"(c)
       : "r"(a), "r"(b), "0"(c),
         "m"(*a), "m"(*b), "m"(*c)
@@ -252,16 +253,16 @@ static void mtr3(point *a, point *b, point *c) {
       "movaps (%7), %%xmm1\n\t" 
       "movaps (%8), %%xmm2\n\t" 
 
-      "movaps %%xmm0, %%xmm3\n\t"
+      "movaps   %%xmm0, %%xmm3\n\t"
       "unpcklps %%xmm2, %%xmm0\n\t"
       "unpckhps %%xmm2, %%xmm3\n\t"
 
-      "movaps %%xmm1, %%xmm2\n\t"
+      "movaps   %%xmm1, %%xmm2\n\t"
       "unpcklps %%xmm1, %%xmm1\n\t"
       "unpckhps %%xmm2, %%xmm2\n\t"
 
       "unpcklps %%xmm2, %%xmm3\n\t"
-      "movaps %%xmm0, %%xmm2\n\t"
+      "movaps   %%xmm0, %%xmm2\n\t"
       "unpcklps %%xmm1, %%xmm0\n\t"
       "unpckhps %%xmm1, %%xmm2\n\t"
 
@@ -269,18 +270,16 @@ static void mtr3(point *a, point *b, point *c) {
       "movaps %%xmm2, (%1)\n\t"
       "movaps %%xmm3, (%2)\n\t"
 
-      : "=r"(a), "=r"(b), "=r"(c),
-        "=m"(*a), "=m"(*b), "=m"(*c)
-      : "0"(a),  "1"(b), "2"(c),
-        "m"(*a), "m"(*b), "m"(*c)
+      : "=r"(a), "=r"(b), "=r"(c), "=m"(*a), "=m"(*b), "=m"(*c)
+      :  "0"(a),  "1"(b),  "2"(c),  "m"(*a),  "m"(*b),  "m"(*c)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
 }
 
 static void det3(scalar *d, point *a, point *b, point *c) {
   /* determinant of a 3x3 matrix given its three vectors */
   __asm__ (
-      "movaps (%3), %%xmm0\n\t"
-      "movaps (%4), %%xmm2\n\t"
+      "movaps   (%3), %%xmm0\n\t"
+      "movaps   (%4), %%xmm2\n\t"
       "movaps %%xmm0, %%xmm1\n\t"
       "movaps %%xmm2, %%xmm3\n\t"
 
@@ -293,15 +292,16 @@ static void det3(scalar *d, point *a, point *b, point *c) {
       "mulps %%xmm3, %%xmm1\n\t"
 
       "subps %%xmm1, %%xmm0\n\t"
-      "mulps (%2), %%xmm0\n\t"
+      "mulps   (%2), %%xmm0\n\t"
 
       "movhlps %%xmm0, %%xmm1\n\t"
-      "haddps %%xmm0, %%xmm0\n\t"
-      "addss %%xmm1, %%xmm0\n\t"
+      "haddps  %%xmm0, %%xmm0\n\t"
+      "addss   %%xmm1, %%xmm0\n\t"
 
-      "movss %%xmm0, (%0)\n\t"
+      "movss   %%xmm0, (%0)\n\t"
+
       : "=r"(d), "=m"(*d)
-      : "r"(a), "r"(b), "r"(c), "0"(d),
+      :  "r"(a),  "r"(b),  "r"(c),  "0"(d),
         "m"(*a), "m"(*b), "m"(*c), "m"(*d)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
 }
