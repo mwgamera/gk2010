@@ -117,7 +117,7 @@ tmatrix tcompose(tmatrix a, tmatrix b) {
 
       "movaps %%xmm4, 48(%2)\n\t"
 
-      : "=m"(b) : "r"(&a), "r"(&b), "m"(a), "m"(b)
+      : "=o"(b) : "r"(&a), "r"(&b), "o"(a), "o"(b)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3",
         "%xmm4", "%xmm5", "%xmm6", "%xmm7");
   return b;
@@ -154,9 +154,9 @@ point transform(tmatrix a, point b) {
       "addps   %%xmm7, %%xmm6\n\t"
       "addps   %%xmm6, %%xmm4\n\t"
 
-      "movaps %%xmm4, (%2)\n\t"
+      "movaps %%xmm4, %0\n\t"
 
-      : "=m"(b) : "r"(&a), "r"(&b), "m"(a), "m"(b)
+      : "=X"(b) : "r"(&a), "r"(&b), "o"(a), "o"(b)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3",
         "%xmm4", "%xmm5", "%xmm6", "%xmm7");
   return b;
@@ -164,59 +164,51 @@ point transform(tmatrix a, point b) {
 
 point normalize(point p) {
   __asm__ (
-      "movaps (%1), %%xmm0\n\t"
+      "movaps     %1, %%xmm0\n\t"
       "movaps %%xmm0, %%xmm1\n\t"
-      "shufps $0xFF, %%xmm1, %%xmm1\n\t"
-      "divps %%xmm1, %%xmm0\n\t"
-      "movaps %%xmm0, (%1)\n\t"
-      : "=m"(p) : "r"(&p), "m"(p)
-      : "%xmm0", "%xmm1");
+      "shufps  $0xFF, %%xmm1, %%xmm1\n\t"
+      "divps  %%xmm1, %%xmm0\n\t"
+      "movaps %%xmm0, %0\n\t"
+      : "=X"(p) : "X"(p) : "%xmm0");
   return p;
 }
 
 point direction(point v) {
   __asm__ (
-      "movaps (%1), %%xmm0\n\t"
-      "movaps (%1), %%xmm2\n\t"
-
+      "movaps      %1, %%xmm0\n\t"
+      "movaps      %1, %%xmm2\n\t"
       "mulps   %%xmm0, %%xmm0\n\t"
       "movhlps %%xmm0, %%xmm1\n\t"
       "haddps  %%xmm0, %%xmm0\n\t"
       "addss   %%xmm1, %%xmm0\n\t"
       "rsqrtss %%xmm0, %%xmm0\n\t"
-      "shufps   $0x00, %%xmm0, %%xmm0\n\t"
-      "mulps   %%xmm0, %%xmm2\n\t"
-
-      "movaps  %%xmm2,   (%1)\n\t"
-      "mov         %3, 12(%1)"
-
-      : "=m"(v) : "r"(&v), "m"(v), "r"(1.0f)
-      : "%eax", "%xmm0", "%xmm1", "%xmm2");
+      "shufps  $0, %%xmm0, %%xmm0\n\t"
+      "mulps   %%xmm2, %%xmm0\n\t"
+      "movaps  %%xmm0, %0\n\t"
+      : "=X"(v) : "X"(v)
+      : "%xmm0", "%xmm1", "%xmm2");
+  v.d[3] = 1.f;
   return v;
 }
 
 point sdotmul(scalar b, point a) {
   __asm__ (
-      "movss      (%2), %%xmm0\n\t"
-      "unpcklps %%xmm0, %%xmm0\n\t"
-      "movlhps  %%xmm0, %%xmm0\n\t"
-      "mulps      (%1), %%xmm0\n\t"
-      "movaps   %%xmm0, (%1)\n\t"
-      : "=m"(a) : "r"(&a), "r"(&b), "m"(a), "m"(b)
-      : "%xmm0");
+      "unpcklps %2, %2\n\t"
+      "movlhps  %2, %2\n\t"
+      "mulps    %1, %2\n\t"
+      "movaps   %2, %0\n\t"
+      : "=X"(a) : "X"(a), "x"(b));
   return a;
 }
 
 scalar pdotmul(point a, point b) {
   scalar c;
   __asm__ (
-      "movaps   (%1), %%xmm0\n\t"
-      "mulps    (%2), %%xmm0\n\t"
-      "haddps %%xmm0, %%xmm0\n\t"
-      "haddps %%xmm0, %%xmm0\n\t"
-      "movss  %%xmm0, %3\n\t"
-      : "=m"(c) : "r"(&a), "r"(&b), "m"(c), "m"(a), "m"(b)
-      : "%xmm0");
+      "movaps %1, %0\n\t"
+      "mulps  %2, %0\n\t"
+      "haddps %0, %0\n\t"
+      "haddps %0, %0\n\t"
+      : "=x"(c) : "X"(a), "X"(b));
   return c;
 }
 
@@ -250,43 +242,42 @@ static void mtr3(point *a, point *b, point *c) {
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
 }
 
-static void det3(scalar *d, point *a, point *b, point *c) {
+static scalar det3(point a, point b, point c) {
   /* determinant of a 3x3 matrix given its three vectors */
+  scalar d;
   __asm__ (
-      "movaps   (%2), %%xmm0\n\t"
-      "movaps   (%3), %%xmm2\n\t"
-      "movaps %%xmm0, %%xmm1\n\t"
+      "movaps     %2, %0\n\t"
+      "movaps     %3, %%xmm2\n\t"
+      "movaps     %0, %%xmm1\n\t"
       "movaps %%xmm2, %%xmm3\n\t"
 
-      "shufps $0x09, %%xmm0, %%xmm0\n\t"
-      "shufps $0x12, %%xmm2, %%xmm2\n\t"
-      "mulps %%xmm2, %%xmm0\n\t"
+      "shufps  $0x09, %0,     %0\n\t"
+      "shufps  $0x12, %%xmm2, %%xmm2\n\t"
+      "mulps  %%xmm2, %0\n\t"
 
-      "shufps $0x12, %%xmm1, %%xmm1\n\t"
-      "shufps $0x09, %%xmm3, %%xmm3\n\t"
-      "mulps %%xmm3, %%xmm1\n\t"
+      "shufps  $0x12, %%xmm1, %%xmm1\n\t"
+      "shufps  $0x09, %%xmm3, %%xmm3\n\t"
+      "mulps  %%xmm3, %%xmm1\n\t"
 
-      "subps %%xmm1, %%xmm0\n\t"
-      "mulps   (%1), %%xmm0\n\t"
+      "subps  %%xmm1, %0\n\t"
+      "mulps      %1, %0\n\t"
 
-      "movhlps %%xmm0, %%xmm1\n\t"
-      "haddps  %%xmm0, %%xmm0\n\t"
-      "addss   %%xmm1, %%xmm0\n\t"
+      "movhlps    %0, %%xmm1\n\t"
+      "haddps     %0, %0\n\t"
+      "addss  %%xmm1, %0\n\t"
 
-      "movss   %%xmm0, (%4)\n\t"
-
-      : "=m"(*d)
-      : "r" (a), "r" (b), "r" (c), "r" (d),
-        "m"(*a), "m"(*b), "m"(*c), "m"(*d)
-      : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
+      : "=x"(d)
+      : "X"(a), "X"(b), "X"(c)
+      : "%xmm1", "%xmm2", "%xmm3");
+  return d;
 }
 
 point pointplane(point a, point b, point c) {
   point plane, I = {{ 1, 1, 1 }};
   mtr3(&a, &b, &c);
-  det3(&plane.d[0], &I, &b, &c);
-  det3(&plane.d[1], &a, &I, &c);
-  det3(&plane.d[2], &a, &b, &I);
-  det3(&plane.d[3], &a, &c, &b);
+  plane.d[0] = det3(I, b, c);
+  plane.d[1] = det3(a, I, c);
+  plane.d[2] = det3(a, b, I);
+  plane.d[3] = det3(a, c, b);
   return plane;
 }
