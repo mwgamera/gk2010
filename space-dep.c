@@ -245,3 +245,41 @@ scalar pdotmul(point a, point b) {
   return pdotmul_asm(&c, &a, &b);
 }
 
+static void det3(scalar *d, point *a, point *b, point *c) {
+  /* determinant of a 3x3 matrix given its three vectors */
+  __asm__ (
+      "movaps (%2), %%xmm0\n\t"
+      "movaps (%3), %%xmm2\n\t"
+      "movaps %%xmm0, %%xmm1\n\t"
+      "movaps %%xmm2, %%xmm3\n\t"
+
+      "shufps $0x09, %%xmm0, %%xmm0\n\t"
+      "shufps $0x12, %%xmm2, %%xmm2\n\t"
+      "mulps %%xmm2, %%xmm0\n\t"
+
+      "shufps $0x12, %%xmm1, %%xmm1\n\t"
+      "shufps $0x09, %%xmm3, %%xmm3\n\t"
+      "mulps %%xmm3, %%xmm1\n\t"
+
+      "subps %%xmm1, %%xmm0\n\t"
+      "mulps (%1), %%xmm0\n\t"
+
+      "movhlps %%xmm0, %%xmm1\n\t"
+      "haddps %%xmm0, %%xmm0\n\t"
+      "addss %%xmm1, %%xmm0\n\t"
+
+      "movss %%xmm0, (%0)\n\t"
+      : "=r"(d)
+      : "r"(a), "r"(b), "r"(c), "0"(d),
+        "m"(*a), "m"(*b), "m"(*c), "m"(*d)
+      : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
+}
+
+point pointplane(point a, point b, point c) {
+  point plane, I = {{ 1, 1, 1 }};
+  det3(&plane.d[0], &I, &b, &c);
+  det3(&plane.d[1], &a, &I, &c);
+  det3(&plane.d[2], &a, &b, &I);
+  det3(&plane.d[3], &a, &c, &b);
+  return plane;
+}
