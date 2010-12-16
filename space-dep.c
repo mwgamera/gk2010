@@ -1,7 +1,7 @@
 #include "space.h"
 #include "space-dep.h"
 
-static tmatrix tcompose_asm(tmatrix *a, tmatrix *b) {
+tmatrix tcompose(tmatrix a, tmatrix b) {
   __asm__ (
       /* left matrix */
       "movaps   (%1), %%xmm0\n\t"
@@ -34,7 +34,7 @@ static tmatrix tcompose_asm(tmatrix *a, tmatrix *b) {
       "addps   %%xmm7, %%xmm6\n\t"
       "addps   %%xmm6, %%xmm4\n\t"
 
-      "movaps %%xmm4, (%0)\n\t"
+      "movaps %%xmm4, (%2)\n\t"
 
       /* second column */
       "movlps 16(%2), %%xmm4\n\t"
@@ -61,7 +61,7 @@ static tmatrix tcompose_asm(tmatrix *a, tmatrix *b) {
       "addps   %%xmm7, %%xmm6\n\t"
       "addps   %%xmm6, %%xmm4\n\t"
 
-      "movaps %%xmm4, 16(%0)\n\t"
+      "movaps %%xmm4, 16(%2)\n\t"
  
       /* third column */
       "movlps 32(%2), %%xmm4\n\t"
@@ -88,7 +88,7 @@ static tmatrix tcompose_asm(tmatrix *a, tmatrix *b) {
       "addps   %%xmm7, %%xmm6\n\t"
       "addps   %%xmm6, %%xmm4\n\t"
 
-      "movaps %%xmm4, 32(%0)\n\t"
+      "movaps %%xmm4, 32(%2)\n\t"
  
       /* fourth column */
       "movlps 48(%2), %%xmm4\n\t"
@@ -115,19 +115,15 @@ static tmatrix tcompose_asm(tmatrix *a, tmatrix *b) {
       "addps   %%xmm7, %%xmm6\n\t"
       "addps   %%xmm6, %%xmm4\n\t"
 
-      "movaps %%xmm4, 48(%0)\n\t"
+      "movaps %%xmm4, 48(%2)\n\t"
 
-      : "=r"(b) : "r"(a), "0"(b), "m"(*a), "m"(*b)
+      : "=m"(b) : "r"(&a), "r"(&b), "m"(a), "m"(b)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3",
         "%xmm4", "%xmm5", "%xmm6", "%xmm7");
-  return *b;
+  return b;
 }
 
-tmatrix tcompose(tmatrix a, tmatrix b) {
-  return tcompose_asm(&a, &b);
-}
-
-static point transform_asm(tmatrix *a, point *b) {
+point transform(tmatrix a, point b) {
   __asm__ (
       "movaps   (%1), %%xmm0\n\t"
       "movaps 16(%1), %%xmm1\n\t"
@@ -158,35 +154,27 @@ static point transform_asm(tmatrix *a, point *b) {
       "addps   %%xmm7, %%xmm6\n\t"
       "addps   %%xmm6, %%xmm4\n\t"
 
-      "movaps %%xmm4, (%0)\n\t"
+      "movaps %%xmm4, (%2)\n\t"
 
-      : "=r"(b) : "r"(a), "0"(b), "m"(*a), "m"(*b)
+      : "=m"(b) : "r"(&a), "r"(&b), "m"(a), "m"(b)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3",
         "%xmm4", "%xmm5", "%xmm6", "%xmm7");
-  return *b;
+  return b;
 }
 
-point transform(tmatrix a, point b) {
-  return transform_asm(&a, &b);
-}
-
-static point normalize_asm(point *p) {
+point normalize(point p) {
   __asm__ (
       "movaps (%1), %%xmm0\n\t"
       "movaps %%xmm0, %%xmm1\n\t"
       "shufps $0xFF, %%xmm1, %%xmm1\n\t"
       "divps %%xmm1, %%xmm0\n\t"
-      "movaps %%xmm0, (%0)\n\t"
-      : "=r"(p) : "0"(p), "m"(*p)
+      "movaps %%xmm0, (%1)\n\t"
+      : "=m"(p) : "r"(&p), "m"(p)
       : "%xmm0", "%xmm1");
-  return *p;
+  return p;
 }
 
-point normalize(point p) {
-  return normalize_asm(&p);
-}
-
-static point direction_asm(point *v) {
+point direction(point v) {
   __asm__ (
       "movaps (%1), %%xmm0\n\t"
       "movaps (%1), %%xmm2\n\t"
@@ -199,59 +187,45 @@ static point direction_asm(point *v) {
       "shufps   $0x00, %%xmm0, %%xmm0\n\t"
       "mulps   %%xmm0, %%xmm2\n\t"
 
-      "movaps  %%xmm2, (%0)\n\t"
-      "mov         %3, 12(%0)"
+      "movaps  %%xmm2,   (%1)\n\t"
+      "mov         %3, 12(%1)"
 
-      : "=r"(v) : "0"(v), "m"(*v), "r"(1.0f)
+      : "=m"(v) : "r"(&v), "m"(v), "r"(1.0f)
       : "%eax", "%xmm0", "%xmm1", "%xmm2");
-  return *v;
+  return v;
 }
 
-point direction(point v) {
-  return direction_asm(&v);
-}
-
-static point sdotmul_asm(point *a, scalar *b) {
+point sdotmul(scalar b, point a) {
   __asm__ (
       "movss      (%2), %%xmm0\n\t"
       "unpcklps %%xmm0, %%xmm0\n\t"
       "movlhps  %%xmm0, %%xmm0\n\t"
       "mulps      (%1), %%xmm0\n\t"
-      "movaps   %%xmm0, (%0)\n\t"
-      : "=r"(a) : "0"(a), "r"(b), "m"(*a), "m"(*b)
+      "movaps   %%xmm0, (%1)\n\t"
+      : "=m"(a) : "r"(&a), "r"(&b), "m"(a), "m"(b)
       : "%xmm0");
-  return *a;
+  return a;
 }
 
-point sdotmul(scalar b, point a) {
-  return sdotmul_asm(&a, &b);
-}
-
-static scalar pdotmul_asm(scalar *c, point *a, point *b) {
+scalar pdotmul(point a, point b) {
+  scalar c;
   __asm__ (
       "movaps   (%1), %%xmm0\n\t"
       "mulps    (%2), %%xmm0\n\t"
       "haddps %%xmm0, %%xmm0\n\t"
       "haddps %%xmm0, %%xmm0\n\t"
-      "movss  %%xmm0, (%0)\n\t"
-      : "=r"(c)
-      : "r"(a), "r"(b), "0"(c),
-        "m"(*a), "m"(*b), "m"(*c)
+      "movss  %%xmm0, %3\n\t"
+      : "=m"(c) : "r"(&a), "r"(&b), "m"(c), "m"(a), "m"(b)
       : "%xmm0");
-  return *c;
-}
-
-scalar pdotmul(point a, point b) {
-  scalar c;
-  return pdotmul_asm(&c, &a, &b);
+  return c;
 }
 
 static void mtr3(point *a, point *b, point *c) {
   /* transpose 3x3 matrix */
   __asm__ (
-      "movaps (%6), %%xmm0\n\t" 
-      "movaps (%7), %%xmm1\n\t" 
-      "movaps (%8), %%xmm2\n\t" 
+      "movaps (%3), %%xmm0\n\t"
+      "movaps (%4), %%xmm1\n\t"
+      "movaps (%5), %%xmm2\n\t"
 
       "movaps   %%xmm0, %%xmm3\n\t"
       "unpcklps %%xmm2, %%xmm0\n\t"
@@ -266,20 +240,21 @@ static void mtr3(point *a, point *b, point *c) {
       "unpcklps %%xmm1, %%xmm0\n\t"
       "unpckhps %%xmm1, %%xmm2\n\t"
 
-      "movaps %%xmm0, (%0)\n\t"
-      "movaps %%xmm2, (%1)\n\t"
-      "movaps %%xmm3, (%2)\n\t"
+      "movaps %%xmm0, (%3)\n\t"
+      "movaps %%xmm2, (%4)\n\t"
+      "movaps %%xmm3, (%5)\n\t"
 
-      : "=r"(a), "=r"(b), "=r"(c), "=m"(*a), "=m"(*b), "=m"(*c)
-      :  "0"(a),  "1"(b),  "2"(c),  "m"(*a),  "m"(*b),  "m"(*c)
+      : "=m"(*a), "=m"(*b), "=m"(*c)
+      :  "r" (a),  "r" (b),  "r" (c),
+         "m"(*a),  "m"(*b),  "m"(*c)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
 }
 
 static void det3(scalar *d, point *a, point *b, point *c) {
   /* determinant of a 3x3 matrix given its three vectors */
   __asm__ (
-      "movaps   (%3), %%xmm0\n\t"
-      "movaps   (%4), %%xmm2\n\t"
+      "movaps   (%2), %%xmm0\n\t"
+      "movaps   (%3), %%xmm2\n\t"
       "movaps %%xmm0, %%xmm1\n\t"
       "movaps %%xmm2, %%xmm3\n\t"
 
@@ -292,16 +267,16 @@ static void det3(scalar *d, point *a, point *b, point *c) {
       "mulps %%xmm3, %%xmm1\n\t"
 
       "subps %%xmm1, %%xmm0\n\t"
-      "mulps   (%2), %%xmm0\n\t"
+      "mulps   (%1), %%xmm0\n\t"
 
       "movhlps %%xmm0, %%xmm1\n\t"
       "haddps  %%xmm0, %%xmm0\n\t"
       "addss   %%xmm1, %%xmm0\n\t"
 
-      "movss   %%xmm0, (%0)\n\t"
+      "movss   %%xmm0, (%4)\n\t"
 
-      : "=r"(d), "=m"(*d)
-      :  "r"(a),  "r"(b),  "r"(c),  "0"(d),
+      : "=m"(*d)
+      : "r" (a), "r" (b), "r" (c), "r" (d),
         "m"(*a), "m"(*b), "m"(*c), "m"(*d)
       : "%xmm0", "%xmm1", "%xmm2", "%xmm3");
 }
