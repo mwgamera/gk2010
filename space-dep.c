@@ -226,17 +226,22 @@ point sdotmul(scalar b, point a) {
   return sdotmul_asm(&a, &b);
 }
 
-static point pdotmul_asm(point *a, point *b) {
+static scalar pdotmul_asm(scalar *c, point *a, point *b) {
   __asm__ (
       "movaps (%1), %%xmm0\n\t"
       "mulps (%2), %%xmm0\n\t"
-      "movaps %%xmm0, (%0)\n\t"
-      : "=r"(a) : "0"(a), "r"(b), "m"(*a), "m"(*b)
+      "haddps %%xmm0, %%xmm0\n\t"
+      "haddps %%xmm0, %%xmm0\n\t"
+      "movss %%xmm0, (%0)\n\t"
+      : "=r"(c)
+      : "r"(a), "r"(b), "0"(c),
+        "m"(*a), "m"(*b), "m"(*c)
       : "%xmm0");
-  return *a;
+  return *c;
 }
 
-point pdotmul(point a, point b) {
-  return pdotmul_asm(&a, &b);
+scalar pdotmul(point a, point b) {
+  scalar c;
+  return pdotmul_asm(&c, &a, &b);
 }
 

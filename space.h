@@ -37,6 +37,6 @@ point direction(point);
 
 /* Scalar products */
 point sdotmul(scalar,point);
-point pdotmul(point,point);
+scalar pdotmul(point,point);
 
 #endif/*_SPACE_H_*/
