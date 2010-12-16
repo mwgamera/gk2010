@@ -58,3 +58,16 @@ scalar pdotmul(point a, point b) {
     s += a.d[i] * b.d[i];
   return s;
 }
+
+point pointplane(point a, point b, point c) {
+  point plane;
+  scalar ax = a.d[0], ay = a.d[1], az = a.d[2];
+  scalar bx = b.d[0], by = b.d[1], bz = b.d[2];
+  scalar cx = c.d[0], cy = c.d[1], cz = c.d[2];
+  plane.d[0] = -ay*(cz-bz)+by*cz+az*(cy-by)-bz*cy;
+  plane.d[1] = ax*(cz-bz)-bx*cz+bz*cx+az*(bx-cx);
+  plane.d[2] = bx*cy+ax*(by-cy)-by*cx-ay*(bx-cx);
+  plane.d[3] = -ax*(by*cz-bz*cy)+ay*(bx*cz-bz*cx)-az*(bx*cy-by*cx);
+  return plane;
+}
+

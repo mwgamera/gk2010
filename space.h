@@ -39,4 +39,7 @@ point direction(point);
 point sdotmul(scalar,point);
 scalar pdotmul(point,point);
 
+/* Plane built on three points */
+point pointplane(point,point,point);
+
 #endif/*_SPACE_H_*/
