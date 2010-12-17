@@ -26,24 +26,31 @@ static int scheduler_break_flag = 0;
 /* Register a task */
 short scheduler_register(int fd, scheduler_fd_t t, void (*fun)(void*), void *dat) {
 
+  scheduler_task_t *tt, *task, **tp;
+
+  /* resize indexes */
+  tp = realloc( scheduler_tasks_id,
+      (tasks_id_max+1) * sizeof*scheduler_tasks_id );
+  if (tp == NULL) return -1;
+  scheduler_tasks_id = tp;
+  tasks_id_max++;
+
+  if (tasks_fd_max <= fd) {
+    tp = realloc( scheduler_tasks_fd,
+        (fd+1) * sizeof*scheduler_tasks_fd );
+    if (tp == NULL) return -1;
+    scheduler_tasks_fd = tp;
+    while (tasks_fd_max <= fd)
+      scheduler_tasks_fd[tasks_fd_max++] = NULL;
+  }
+
   /* create a task */
-  scheduler_task_t *tt, *task = malloc(sizeof*task);
+  task = malloc(sizeof*task);
   task->fd = fd;
   task->type = t;
   task->handler = fun;
   task->data = dat;
   task->next_fd = NULL;
-
-  /* resize indexes (both tables are NULL at the
-   * beginning, so simple realloc is ok here) */
-  scheduler_tasks_id = realloc( scheduler_tasks_id,
-      ++tasks_id_max * sizeof*scheduler_tasks_id );
-  if (tasks_fd_max <= fd) {
-    scheduler_tasks_fd = realloc( scheduler_tasks_fd,
-        (fd+1) * sizeof*scheduler_tasks_fd );
-    while (tasks_fd_max <= fd)
-      scheduler_tasks_fd[tasks_fd_max++] = NULL;
-  }
 
   /* put task in id index */
   scheduler_tasks_id[ task->id = tasks_id_max-1 ] = task;
