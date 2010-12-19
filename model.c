@@ -14,13 +14,32 @@ struct _model {
 
 /* Free model structure */
 void model_free(model *m) {
-  int i;
   assert(m != NULL);
-  for (i = 0; i < m->ns; i++)
-    free(m->s[i].v);
   free(m->v);
   free(m->s);
   free(m);
+}
+
+
+/* Two triangular faces from vertices of convex planar quadrilateral */
+static void split_quadrilateral(
+    face *f1, face *f2,
+    vertex *a, vertex *b, vertex *c, vertex *d) {
+  float d1, d2, q;
+  q = POINT_GET(a->world,0) - POINT_GET(c->world,0); d1  = q*q;
+  q = POINT_GET(a->world,1) - POINT_GET(c->world,1); d1 += q*q;
+  q = POINT_GET(a->world,2) - POINT_GET(c->world,2); d1 += q*q;
+  q = POINT_GET(b->world,0) - POINT_GET(d->world,0); d2  = q*q;
+  q = POINT_GET(b->world,1) - POINT_GET(d->world,1); d2 += q*q;
+  q = POINT_GET(b->world,2) - POINT_GET(d->world,2); d2 += q*q;
+  if (d1 < d2) {
+    f1->v[0] = a; f1->v[1] = b; f1->v[2] = c;
+    f2->v[0] = a; f2->v[1] = c; f2->v[2] = d;
+  }
+  else {
+    f1->v[0] = a; f1->v[1] = b; f1->v[2] = d;
+    f2->v[0] = b; f2->v[1] = c; f2->v[2] = d;
+  }
 }
 
 
@@ -229,18 +248,18 @@ model *model_read_mesh(FILE *fp, int *error) {
         if (strcmp(s, "Quadrilaterals"))
           READ_ERRRET(-4);
         i = atoi(buf_token(&buf));
-        ap = realloc(m->s, (m->ns + i) * sizeof *m->s);
+        ap = realloc(m->s, 2 * (m->ns + i) * sizeof *m->s);
         if (!ap) READ_ERRRET(-3);
         m->s = ap;
         while (i--) {
-          m->s[m->ns].n = 4;
-          m->s[m->ns].v = malloc(m->s[m->ns].n * sizeof*m->s->v);
-          m->s[m->ns].v[0] = m->v + atoi(buf_token(&buf)) - 1;
-          m->s[m->ns].v[1] = m->v + atoi(buf_token(&buf)) - 1;
-          m->s[m->ns].v[2] = m->v + atoi(buf_token(&buf)) - 1;
-          m->s[m->ns].v[3] = m->v + atoi(buf_token(&buf)) - 1;
+          vertex *a, *b, *c, *d;
+          a = m->v + atoi(buf_token(&buf)) - 1;
+          b = m->v + atoi(buf_token(&buf)) - 1;
+          c = m->v + atoi(buf_token(&buf)) - 1;
+          d = m->v + atoi(buf_token(&buf)) - 1;
+          split_quadrilateral(m->s+m->ns, m->s+m->ns+1, a, b, c, d);
           (void) buf_token(&buf); /* ref no */
-          m->ns++;
+          m->ns += 2;
         }
         break;
       case 'R':
@@ -328,8 +347,6 @@ model *model_read_mesh(FILE *fp, int *error) {
             if (!ap) READ_ERRRET(-3);
             m->s = ap;
             while (i--) {
-              m->s[m->ns].n = 3;
-              m->s[m->ns].v = malloc(m->s[m->ns].n * sizeof*m->s->v);
               m->s[m->ns].v[0] = m->v + atoi(buf_token(&buf)) - 1;
               m->s[m->ns].v[1] = m->v + atoi(buf_token(&buf)) - 1;
               m->s[m->ns].v[2] = m->v + atoi(buf_token(&buf)) - 1;
