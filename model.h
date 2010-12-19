@@ -5,38 +5,31 @@
 #include <stdio.h>
 
 /* Types */
+typedef struct _scene scene;
 typedef struct _model model;
-typedef struct _surface surface;
-typedef struct _halfedge halfedge;
+typedef struct _face face;
 typedef struct _vertex vertex;
 
-struct _model {
-  vertex *vertices;
-  surface *surfaces;
-  halfedge *halfedges;
-  int nvertices;
-  int nsurfaces;
-};
+/* Publicly accessible structures */
 
-struct _surface {
-  halfedge *edge;
-};
-
+/* Vertex */
 struct _vertex {
-  point world;
-  point camera;
-  halfedge *edge;
+  point world; /* point in world coordinates */
+  point camera; /* point in transformed coordinates */
 };
 
-struct _halfedge {
-  vertex *vertex;
-  halfedge *pair;
-  halfedge *next;
+/* Convex polygon determined by ordered set of its vertices */
+struct _face {
+  vertex **v; /* pointers to vertices */
+  int n; /* number of vertices */
 };
 
-model *model_read(FILE*);
+/* Free model data */
 void model_free(model*);
 
-void model_transform(tmatrix, model*);
+/* Load model from a .mesh file */
+model *model_read_mesh(FILE*, int*);
+
+/* TODO */
 
 #endif/*_MODEL_H_*/
