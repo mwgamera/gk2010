@@ -4,17 +4,11 @@
 #include <ctype.h>
 #include <string.h>
 
-/* Private structures */
+/* Model structure */
 struct _model {
   vertex *v;  /* array of vertices */
-  face *s; /* array of faces */
+  face *s;    /* array of faces */
   int nv, ns; /* lengths */
-};
-
-struct _scene {
-  face *s; /* face laying on splitting plane */
-  scene *p, *n; /* positive and negative half-scenes */
-  scalar a, b, c, d; /* coefficients of splitting plane */
 };
 
 
@@ -99,7 +93,7 @@ static char *buf_token(struct file_buffer *ff) {
   *error = (code); \
   return NULL; \
 }
-/* Error codes:
+/* Internal error codes:
  *  0 success
  * -1 invalid format
  * -2 invalid version of format
@@ -376,4 +370,85 @@ model *model_read_mesh(FILE *fp, int *error) {
   return m;
 }
 
-/* TODO: building scene from models */
+
+/* Transform model */
+void model_transform(tmatrix a, model *m) {
+  int i = m->nv;
+  while (i--)
+    m->v[i].camera = transform(a, m->v[i].world);
+}
+
+/* Permamently apply transformation of model */
+void model_commit(model *m) {
+  int i = m->nv;
+  while (i--)
+    m->v[i].world = normalize(m->v[i].camera);
+}
+
+
+
+/* Scene structure */
+typedef struct _scene_node scene_node;
+struct _scene_node {
+  face *s; /* face laying on splitting plane */
+  scene_node *p, *n; /* positive and negative half-scenes */
+  point d; /* coefficients of splitting plane */
+};
+
+struct _scene {
+  vertex *vx; /* array of all vertices in scene */
+  scene_node *root;  /* root of the scene */
+};
+
+
+/* Free scene structure */
+static void scene_free_r(scene_node *s) {
+  if (s == NULL) return;
+  scene_free_r(s->p);
+  scene_free_r(s->n);
+  free(s);
+}
+void scene_free(scene *s) {
+  scene_free_r(s->root);
+  free(s->vx);
+  free(s);
+}
+
+
+/* Space partitioning */
+scene *scene_build(model **models, int nmodels) {
+  /* TODO: copy vertices and partition faces */
+  return NULL;
+}
+
+
+/* Traverse BSP-tree in-order */
+static void scene_traverse_r(scene_node *s,
+    point p, void (*fun)(face*)) {
+  if (s->p == s->n) {
+    assert(s->p == NULL);
+    (*fun)(s->s);
+  }
+  else {
+    scalar d = pdotmul(s->d, p);
+    if (d < 0.f) {
+      if (s->p != NULL)
+        scene_traverse_r(s->p, p, fun);
+      (*fun)(s->s);
+      if (s->n != NULL)
+        scene_traverse_r(s->n, p, fun);
+    }
+    else {
+      if (s->n != NULL)
+        scene_traverse_r(s->n, p, fun);
+      (*fun)(s->s);
+      if (s->p != NULL)
+        scene_traverse_r(s->p, p, fun);
+    }
+  }
+}
+void scene_traverse(scene *s,
+    point p, void (*fun)(face*)) {
+  scene_traverse_r(s->root, p, fun);
+}
+
