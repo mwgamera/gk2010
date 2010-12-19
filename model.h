@@ -20,8 +20,7 @@ struct _vertex {
 
 /* Convex polygon determined by ordered set of its vertices */
 struct _face {
-  vertex **v; /* pointers to vertices */
-  int n; /* number of vertices */
+  vertex *v[3]; /* pointers to vertices */
 };
 
 /* Free model data */
