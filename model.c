@@ -34,10 +34,10 @@ static void split_quadrilateral(
   q = POINT_GET(b->world,2) - POINT_GET(d->world,2); d2 += q*q;
   if (d1 < d2) {
     f1->v[0] = a; f1->v[1] = b; f1->v[2] = c;
-    f2->v[0] = a; f2->v[1] = c; f2->v[2] = d;
+    f2->v[0] = c; f2->v[1] = d; f2->v[2] = a;
   }
   else {
-    f1->v[0] = a; f1->v[1] = b; f1->v[2] = d;
+    f1->v[0] = d; f1->v[1] = a; f1->v[2] = b;
     f2->v[0] = b; f2->v[1] = c; f2->v[2] = d;
   }
 }
@@ -395,7 +395,7 @@ void model_transform(tmatrix a, model *m) {
     m->v[i].camera = transform(a, m->v[i].world);
 }
 
-/* Permamently apply transformation of model */
+/* Permanently apply transformation of model */
 void model_commit(model *m) {
   int i = m->nv;
   while (i--)
@@ -407,14 +407,15 @@ void model_commit(model *m) {
 /* Scene structure */
 typedef struct _scene_node scene_node;
 struct _scene_node {
-  face *s; /* face laying on splitting plane */
   scene_node *p, *n; /* positive and negative half-scenes */
+  face *s; /* face laying on the splitting plane */
   point d; /* coefficients of splitting plane */
 };
 
 struct _scene {
-  vertex *vx; /* array of all vertices in scene */
+  vertex *vx; /* array of vertices */
   scene_node *root;  /* root of the scene */
+  int nvx; /* lengths */
 };
 
 
@@ -433,9 +434,63 @@ void scene_free(scene *s) {
 
 
 /* Space partitioning */
-scene *scene_build(model **models, int nmodels) {
-  /* TODO: copy vertices and partition faces */
+
+/* Copy faces with vertices out of a number of models */
+static int scene_build_copy(
+    vertex **vx, int *nvx, face **fx, int *nfx, /* out */
+    model **models, int nmodels) {
+  int i, va, fa;
+  *nvx = *nfx = 0;
+  for (i = 0; i < nmodels; i++) {
+    *nvx += models[i]->nv;
+    *nfx += models[i]->ns;
+  }
+  *vx = malloc(*nvx * sizeof**vx);
+  if (!*vx) return -1;
+  *fx = malloc(*nfx * sizeof**fx);
+  if (!*fx) {
+    free(*vx);
+    return -1;
+  }
+  va = fa = 0;
+  for (i = 0; i < nmodels; i++) {
+    int k;
+    for (k = 0; k < models[i]->nv; k++)
+      (*vx)[va+k].world = models[i]->v[k].world;
+    for (k = 0; k < models[i]->ns; k++) {
+      (*fx)[fa+k].v[0] = models[i]->s[k].v[0] - models[i]->v + *vx + va;
+      (*fx)[fa+k].v[1] = models[i]->s[k].v[1] - models[i]->v + *vx + va;
+      (*fx)[fa+k].v[2] = models[i]->s[k].v[2] - models[i]->v + *vx + va;
+    }
+    fa += models[i]->ns;
+    va += models[i]->nv;
+  }
+  return 0;
+}
+/* Partition sub-scene */
+static scene_node *scene_build_node() {
+  /* TODO */
   return NULL;
+}
+scene *scene_build(model **models, int nmodels) {
+  /* TODO */
+  return NULL;
+}
+
+
+/* Transform scene */
+void scene_transform(tmatrix a, scene *s) {
+  int i = s->nvx;
+  while (i--)
+    s->vx[i].camera = transform(a, s->vx[i].world);
+}
+
+
+/* Traverse vertices */
+void scene_vertices(scene *s, void(*fun)(vertex*)) {
+  int i = s->nvx;
+  while (i--)
+    (*fun)(&(s->vx[i]));
 }
 
 

@@ -18,7 +18,7 @@ struct _vertex {
   point camera; /* point in transformed coordinates */
 };
 
-/* Convex polygon determined by ordered set of its vertices */
+/* Face */
 struct _face {
   vertex *v[3]; /* pointers to vertices */
 };
@@ -29,7 +29,7 @@ void model_free(model*);
 /* Load model from a .mesh file */
 model *model_read_mesh(FILE*, int*);
 
-/* Apply transformation to a model */
+/* Transform points of a model */
 void model_transform(tmatrix, model*);
 
 /* Commit transformed model to a world */
@@ -40,6 +40,12 @@ void scene_free(scene*);
 
 /* Build a new scene from given number of models */
 scene *scene_build(model**, int);
+
+/* Transform points of a scene */
+void scene_transform(tmatrix, scene*);
+
+/* Traverse vertices in undefined order */
+void scene_vertices(scene*, void(*)(vertex*));
 
 /* Traverse faces from the furthest to nearest
  * given reference point in world coordinates */
