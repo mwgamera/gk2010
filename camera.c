@@ -94,9 +94,9 @@ void camera_move(int axis, float scale) {
 
 point camera_position() {
   point loc = POINT_ZERO;
-  POINT_SET(loc, 0, TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),0,3));
-  POINT_SET(loc, 1, TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),1,3));
-  POINT_SET(loc, 2, TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),2,3));
+  POINT_SET(loc, 0, -TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),0,3));
+  POINT_SET(loc, 1, -TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),1,3));
+  POINT_SET(loc, 2, -TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),2,3));
   return loc;
 }
 
