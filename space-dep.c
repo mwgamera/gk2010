@@ -281,3 +281,32 @@ point pointplane(point a, point b, point c) {
   plane.d[3] = det3(a, c, b);
   return plane;
 }
+
+point planeintrs(point plane, point a, point b) {
+  __asm__ (
+      "movaps     %1, %%xmm1\n\t"
+      "movaps     %2, %%xmm2\n\t"
+      "movaps     %3, %%xmm3\n\t"
+      "movaps %%xmm3, %%xmm4\n\t"
+
+      "subps  %%xmm2, %%xmm3\n\t"
+      "mulps  %%xmm1, %%xmm4\n\t"
+      "haddps %%xmm4, %%xmm4\n\t"
+      "haddps %%xmm4, %%xmm4\n\t"
+
+      "mulps  %%xmm3, %%xmm1\n\t"
+      "haddps %%xmm1, %%xmm1\n\t"
+      "haddps %%xmm1, %%xmm1\n\t"
+
+      "divss    %%xmm1, %%xmm4\n\t"
+      "unpcklps %%xmm4, %%xmm4\n\t"
+      "movlhps  %%xmm4, %%xmm4\n\t"
+      "mulps    %%xmm4, %%xmm3\n\t"
+
+      "addps  %%xmm3, %%xmm2\n\t"
+      "movaps %%xmm2, %0\n\t"
+
+      : "=X"(a) : "X"(plane), "0"(a), "X"(b)
+      : "%xmm1", "%xmm2", "%xmm3", "%xmm4");
+  return a;
+}

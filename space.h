@@ -42,4 +42,7 @@ scalar pdotmul(point,point);
 /* Plane built on three points */
 point pointplane(point,point,point);
 
+/* Intersection of a plane and a line */
+point planeintrs(point plane,point,point);
+
 #endif/*_SPACE_H_*/
