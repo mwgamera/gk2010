@@ -5,38 +5,50 @@
 #include <stdio.h>
 
 /* Types */
+typedef struct _scene scene;
 typedef struct _model model;
-typedef struct _surface surface;
-typedef struct _halfedge halfedge;
+typedef struct _face face;
 typedef struct _vertex vertex;
 
-struct _model {
-  vertex *vertices;
-  surface *surfaces;
-  halfedge *halfedges;
-  int nvertices;
-  int nsurfaces;
-};
+/* Publicly accessible structures */
 
-struct _surface {
-  halfedge *edge;
-};
-
+/* Vertex */
 struct _vertex {
-  point world;
-  point camera;
-  halfedge *edge;
+  point world; /* point in world coordinates */
+  point camera; /* point in transformed coordinates */
 };
 
-struct _halfedge {
-  vertex *vertex;
-  halfedge *pair;
-  halfedge *next;
+/* Face */
+struct _face {
+  vertex *v[3]; /* pointers to vertices */
 };
 
-model *model_read(FILE*);
+/* Free model data */
 void model_free(model*);
 
+/* Load model from a .mesh file */
+model *model_read_mesh(FILE*, int*);
+
+/* Transform points of a model */
 void model_transform(tmatrix, model*);
+
+/* Commit transformed model to a world */
+void model_commit(model*);
+
+/* Free scene data */
+void scene_free(scene*);
+
+/* Build a new scene from given number of models */
+scene *scene_build(model**, int);
+
+/* Transform points of a scene */
+void scene_transform(tmatrix, scene*);
+
+/* Traverse vertices in undefined order */
+void scene_vertices(scene*, void(*)(vertex*));
+
+/* Traverse faces from the furthest to nearest
+ * given reference point in world coordinates */
+void scene_traverse(scene*, point, void (*)(face*));
 
 #endif/*_MODEL_H_*/
