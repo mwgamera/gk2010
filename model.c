@@ -408,14 +408,15 @@ void model_commit(model *m) {
 typedef struct _scene_node scene_node;
 struct _scene_node {
   scene_node *p, *n; /* positive and negative half-scenes */
-  face *s; /* face laying on the splitting plane */
+  face s; /* face laying on the splitting plane */
   point d; /* coefficients of splitting plane */
 };
 
 struct _scene {
-  vertex *vx; /* array of vertices */
   scene_node *root;  /* root of the scene */
-  int nvx; /* lengths */
+  vertex *vx; /* array of original vertices */
+  vertex **vsx; /* arrays of vertices from splits */
+  int nvx, nvsx; /* lengths */
 };
 
 
@@ -428,6 +429,9 @@ static void scene_free_r(scene_node *s) {
 }
 void scene_free(scene *s) {
   scene_free_r(s->root);
+  while (s->nvsx--)
+    free(s->vsx[s->nvsx]);
+  free(s->vsx);
   free(s->vx);
   free(s);
 }
@@ -467,14 +471,212 @@ static int scene_build_copy(
   }
   return 0;
 }
+/* Fast PRNG, Marsaglia 2003 */
+static unsigned long xrand() {
+  static unsigned long y = 2463534242;
+  y ^= y << 13; y ^= y >> 17; y ^= y << 5;
+  return y;
+}
+/* Qualify face */
+static int face_infront(point plane, face *fx) {
+  scalar d[3];
+  int i;
+  for (i = 0; i < 3; i++)
+    d[i] = pdotmul(plane, fx->v[i]->world);
+  if (d[0] >= 0.f && d[1] >= 0.f && d[2] >= 0.f)
+    return 1; /* in front */
+  if (d[0] <= 0.f && d[1] <= 0.f && d[2] <= 0.f)
+    return -1; /* behind */
+  return 0; /* intersected */
+}
+/* Swap two elements of face array */
+static void faceswap(face *fx, int i, int j) {
+  face ff = fx[i];
+  fx[i] = fx[j];
+  fx[j] = ff;
+}
+/* Choose splitting face */
+#define SPLIT_SAMPLE 20 /* number of candidates to split planes */
+#define SPLIT_DEPTH 2 /* magic tunable performance parameter */
+static void splitplane(scene_node *n, face *faces, int length) {
+  int i, j, slen, sidx[SPLIT_SAMPLE];
+  int bidx = 0, best = -1;
+  /* draw candidates */
+  if (length < SPLIT_SAMPLE)
+    for (slen = 0; slen < length; slen++)
+      sidx[slen] = slen;
+  else
+    for (slen = 0; slen < SPLIT_SAMPLE; slen++)
+      sidx[slen] = xrand() % length;
+  /* qualify candidates */
+  for (i = 0; i < slen; i++) {
+    int dd, d[3] = { 0, 0, 0 };
+    point plane = pointplane(
+        faces[sidx[i]].v[0]->world,
+        faces[sidx[i]].v[1]->world,
+        faces[sidx[i]].v[2]->world);
+    for (j = 0; j < sidx[i]; j++)
+      d[1+face_infront(plane, faces + j)]++;
+    for (j = sidx[i]+1; j < length; j++)
+      d[1+face_infront(plane, faces + j)]++;
+    dd = (d[0]>d[2] ? d[0]-d[2] : d[2]-d[0]) + SPLIT_DEPTH*d[1];
+    if (dd < best || best < 0) {
+      best = dd;
+      bidx = sidx[i];
+      n->s = faces[sidx[i]];
+      n->d = plane;
+    }
+  }
+  /* move the chosen one to zero */
+  if (bidx) faceswap(faces, 0, bidx);
+}
+/* Split face into sides of a plane */
+static int facesplit(
+    face *pos, face *neg, int *pi, int *ni, /* out */
+    point plane, face fx, scene *sx) {
+  vertex *front[4], *back[4];
+  vertex **vsx, *vvsx;
+  point a, b;
+  scalar sa, sb;
+  int i, vc = 0, fc = 0, bc = 0;
+
+  /* prepare space */
+  vvsx = malloc(2 * sizeof*vvsx);
+  if (!vvsx) return -1;
+  vsx = realloc(sx->vsx, (++sx->nvsx) * sizeof*sx->vsx);
+  if (!vsx) {
+    free(vvsx);
+    return -2;
+  }
+  sx->vsx = vsx;
+  sx->vsx[sx->nvsx-1] = vvsx;
+
+  a = fx.v[2]->world;
+  sa = pdotmul(plane, a);
+
+  /* determine vertices of side polygons */
+  for (i = 0; i < 3; i++) {
+    b = fx.v[i]->world;
+    sb = pdotmul(plane, b);
+    if (sb < 0.f) {
+      if (sa > 0.f) {
+        vvsx[vc++].world = planeintrs(plane, a, b);
+        back[bc++] = front[fc++] = vvsx + vc - 1;
+      }
+      back[bc++] = fx.v[i];
+    }
+    else
+    if (sb > 0.f) {
+      if (sa < 0.f) {
+        vvsx[vc++].world = planeintrs(plane, a, b);
+        front[fc++] = back[bc++] = vvsx + vc - 1;
+      }
+      front[fc++] = fx.v[i];
+    }
+    else
+      front[fc++] = back[bc++] = fx.v[i];
+    a = b;
+    sa = sb;
+  }
+
+  /* return front */
+  if (fc == 4) {
+    split_quadrilateral(pos+*pi, pos+*pi+1,
+        front[0], front[1], front[2], front[3]);
+    *pi += 2;
+  }
+  else {
+    assert(fc == 3);
+    for (i = 0; i < 3; i++)
+      pos[*pi].v[i] = front[i];
+    *pi += 1;
+  }
+
+  /* return back */
+  if (bc == 4) {
+    split_quadrilateral(neg+*ni, neg+*ni+1,
+        back[0], back[1], back[2], back[3]);
+    *ni += 2;
+  }
+  else {
+    assert(bc == 3);
+    for (i = 0; i < 3; i++)
+      neg[*ni].v[i] = back[i];
+    *ni += 1;
+  }
+  return 0;
+}
 /* Partition sub-scene */
-static scene_node *scene_build_node() {
-  /* TODO */
-  return NULL;
+static scene_node *scene_build_node(face *faces, int length, scene *sx) {
+  scene_node *s;
+  face *pos, *neg;
+  int i, d[3] = { 0, 0, 0 };
+  int pi, ni;
+  if (length < 1) {
+    free(faces);
+    return NULL;
+  }
+  s = malloc(sizeof*s);
+  if (!s) return NULL;
+  s->p = s->n = NULL;
+  if (length < 2) {
+    s->s = *faces;
+    free(faces);
+    return s;
+  }
+  splitplane(s, faces, length);
+  for (i = 1; i < length; i++)
+    d[1+face_infront(s->d, faces + i)]++;
+  pos = malloc((d[2]+2*d[1]) * sizeof*pos);
+  neg = malloc((d[0]+2*d[1]) * sizeof*neg);
+  if (!pos || !neg) {
+    free(pos);
+    free(neg);
+    free(s);
+    free(faces);
+    return NULL;
+  }
+  pi = 0; ni = 0;
+  for (i = 1; i < length; i++) {
+    switch (face_infront(s->d, faces + i)) {
+      case -1:
+        neg[ni++] = faces[i];
+        break;
+      case +1:
+        pos[pi++] = faces[i];
+        break;
+      case 0:
+        if (facesplit(pos, neg, &pi, &ni, s->d, faces[i], sx)) {
+          free(pos);
+          free(neg);
+          free(s);
+          free(faces);
+          return NULL;
+        }
+        break;
+    }
+  }
+  for (i = 0; i < ni; i++) {
+    assert(neg[i].v);
+  }
+  for (i = 0; i < pi; i++) {
+    assert(pos[i].v);
+  }
+  free(faces);
+  s->n = scene_build_node(neg, ni, sx);
+  s->p = scene_build_node(pos, pi, sx);
+  return s;
 }
 scene *scene_build(model **models, int nmodels) {
-  /* TODO */
-  return NULL;
+  face *fxs;
+  int nfx;
+  scene *s = malloc(sizeof*s);
+  if (!s) return NULL;
+  scene_build_copy(&s->vx, &s->nvx, &fxs, &nfx, models, nmodels);
+  s->nvsx = 0;
+  s->vsx = NULL;
+  s->root = scene_build_node(fxs, nfx, s);
+  return s;
 }
 
 
@@ -499,21 +701,21 @@ static void scene_traverse_r(scene_node *s,
     point p, void (*fun)(face*)) {
   if (s->p == s->n) {
     assert(s->p == NULL);
-    (*fun)(s->s);
+    (*fun)(&s->s);
   }
   else {
     scalar d = pdotmul(s->d, p);
     if (d < 0.f) {
       if (s->p != NULL)
         scene_traverse_r(s->p, p, fun);
-      (*fun)(s->s);
+      (*fun)(&s->s);
       if (s->n != NULL)
         scene_traverse_r(s->n, p, fun);
     }
     else {
       if (s->n != NULL)
         scene_traverse_r(s->n, p, fun);
-      (*fun)(s->s);
+      (*fun)(&s->s);
       if (s->p != NULL)
         scene_traverse_r(s->p, p, fun);
     }
