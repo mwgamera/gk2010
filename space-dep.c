@@ -287,7 +287,7 @@ point planeintrs(point plane, point a, point b) {
       "movaps     %1, %%xmm1\n\t"
       "movaps     %2, %%xmm2\n\t"
       "movaps     %3, %%xmm3\n\t"
-      "movaps %%xmm3, %%xmm4\n\t"
+      "movaps %%xmm2, %%xmm4\n\t"
 
       "subps  %%xmm2, %%xmm3\n\t"
       "mulps  %%xmm1, %%xmm4\n\t"
@@ -303,7 +303,7 @@ point planeintrs(point plane, point a, point b) {
       "movlhps  %%xmm4, %%xmm4\n\t"
       "mulps    %%xmm4, %%xmm3\n\t"
 
-      "addps  %%xmm3, %%xmm2\n\t"
+      "subps  %%xmm3, %%xmm2\n\t"
       "movaps %%xmm2, %0\n\t"
 
       : "=X"(a) : "X"(plane), "0"(a), "X"(b)
