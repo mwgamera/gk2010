@@ -66,7 +66,7 @@ static int buf_next(struct file_buffer *ff) {
 static char *buf_token(struct file_buffer *ff) {
   /* (?:[:space:]*#[^\n\r]*)*([:graph:]{1,MAX_TOKEN_LENGTH}) */
   static char buf[MAX_TOKEN_LENGTH];
-  int c, i, x = 0;
+  int c, i = 0, x = 0;
   for (;;) {
     c = buf_next(ff);
     switch (x) {
@@ -668,7 +668,7 @@ static scene_node *scene_build_node(face *faces, int length, scene *sx) {
   return s;
 }
 scene *scene_build(model **models, int nmodels) {
-  face *fxs;
+  face *fxs = NULL;
   int nfx;
   scene *s = malloc(sizeof*s);
   if (!s) return NULL;
