@@ -12,6 +12,7 @@ void camera_move(int, float);
 #define CAMERA_RIGHT(s) (camera_move(0,s))
 #define CAMERA_DOWN(s) (camera_move(1,s))
 #define CAMERA_FORWARD(s) (camera_move(2,s))
+point camera_position(void);
 
 /* Rotation */
 void camera_rotate(int, float);
