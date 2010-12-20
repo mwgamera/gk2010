@@ -92,6 +92,14 @@ void camera_move(int axis, float scale) {
   tmm_modified(TMM_LOCATION);
 }
 
+point camera_position() {
+  point loc = POINT_ZERO;
+  POINT_SET(loc, 0, TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),0,3));
+  POINT_SET(loc, 1, TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),1,3));
+  POINT_SET(loc, 2, TMATRIX_GET(TMM_MATRIX(TMM_LOCATION),2,3));
+  return loc;
+}
+
 static tmatrix mkrtt(scalar,scalar,scalar,double);
 
 /* Move around axis (intrinsic) by angle */
