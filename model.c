@@ -604,6 +604,15 @@ static int facesplit(
       neg[*ni].v[i] = back[i];
     *ni += 1;
   }
+
+  /* fill unused memory with magic */
+  for (; vc < 2; vc++) {
+    static unsigned char pat[] = { 0xEF, 0xBE, 0xAD, 0xDE };
+    char *p = (char*) &(vvsx[vc].world);
+    for (i = 0; i < (int) sizeof(point); i++)
+      p[i] = pat[i % (sizeof pat / sizeof*pat)];
+  }
+
   return 0;
 }
 /* Partition sub-scene */
@@ -682,17 +691,25 @@ scene *scene_build(model **models, int nmodels) {
 
 /* Transform scene */
 void scene_transform(tmatrix a, scene *s) {
-  int i = s->nvx;
+  int i = s->nvx, j = s->nvsx;
   while (i--)
     s->vx[i].camera = transform(a, s->vx[i].world);
+  while (j--) {
+    s->vsx[j][0].camera = transform(a, s->vsx[j][0].world);
+    s->vsx[j][1].camera = transform(a, s->vsx[j][1].world);
+  }
 }
 
 
 /* Traverse vertices */
 void scene_vertices(scene *s, void(*fun)(vertex*)) {
-  int i = s->nvx;
+  int i = s->nvx, j = s->nvsx;
   while (i--)
     (*fun)(&(s->vx[i]));
+  while (j--) {
+    (*fun)(s->vsx[j]+0);
+    (*fun)(s->vsx[j]+1);
+  }
 }
 
 
