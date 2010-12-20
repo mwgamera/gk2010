@@ -71,3 +71,15 @@ point pointplane(point a, point b, point c) {
   return plane;
 }
 
+point planeintrs(point plane, point a, point b) {
+  point v = {{ 0, 0, 0, 0 }};
+  scalar u;
+  int i;
+  for (i = 0; i < 3; i++)
+    v.d[i] = b.d[i]-a.d[i];
+  u = pdotmul(plane, b) / pdotmul(plane, v);
+  a.d[0] += u * v.d[0];
+  a.d[1] += u * v.d[1];
+  a.d[2] += u * v.d[2];
+  return a;
+}
