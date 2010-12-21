@@ -220,8 +220,8 @@ void draw_face(face *s) {
     x = POINT_GET(s->v[i]->camera, 0);
     y = POINT_GET(s->v[i]->camera, 1);
     gui_polygon_add(poly,
-        (int)(x + (x < cx ? -0.9f : +0.9f)),
-        (int)(y + (y < cy ? -0.9f : +0.9f)));
+        (int)(x + (x < cx ? -0.5f : +0.5f)),
+        (int)(y + (y < cy ? -0.5f : +0.5f)));
   }
   /* determine color and draw */
   close_color_poly(s);

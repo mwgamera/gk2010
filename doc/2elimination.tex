@@ -1,0 +1,143 @@
+% vim: set ft=tex spell spl=pl,en :
+\documentclass[12pt,a4paper]{article}
+\usepackage[top=2cm, bottom=2cm, left=3.5cm, right=3.5cm]{geometry}
+\usepackage[polish,english]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{polski}
+\usepackage{amsfonts}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+
+\author{Kacper Gutowski}
+\title{Projekt z~grafiki komputerowej\\*
+Kamera wirtualna: \\ eliminacja powierzchni zasłoniętych}
+
+\begin{document}%
+\selectlanguage{polish}
+\maketitle
+
+\section{Wstęp}
+Celem tej części projektu była implementacja
+algorytmu zasłaniania powierzchni zasłoniętych
+aby rysować obiekty z~wypełnionymi ścianami,
+a~nie tylko ich wire\dywiz frame.
+
+\section{Wybór rozwiązań}
+Program oparty jest na poprzedniej części projektu
+i~stanowi jego naturalną rozbudowę, dlatego zastosowałem
+te same rozwiązania.
+Program napisany jest w~języku C89, przeznaczony jest dla systemów
+zgodnych z~POSIX i~wykorzystuje bibliotekę XCB do komunikacji z~serwerem~X.
+
+Zasłanianie zrealizowałem przy pomocy drzewa BSP.
+Algorytm ten pozwala w~nieskomplikowany sposób
+poprawnie ustalić kolejność rysowania dla dowolnego
+układu obiektów, również z~zasłanianiem cyklicznym.
+
+\section{Implementacja}
+\subsection{Model}
+Tak jak w~poprzedniej części projektu, scena zdefiniowana jest
+statycznie w~kodzie.  Jej opis składa się z~trzech tablic
+zawierających odpowiednio, nazwę pliku z~modelem,
+macierz przekształcającą model do postaci w~jakiej ma funkcjonować
+na scenie, oraz kolor obiektu.
+
+W~stosunku do poprzedniej części projektu zmieniłem
+format plików z~modelami, gdyż okazał się jednak nie być wygodnym.
+Aktualnie wczytywane mogą być pliki w~popularnym formacie MESH.
+
+W~pamięci każdy model przechowywany jest jako lista
+wierzchołków oraz lista powierzchni, przy czym tym razem
+powierzchnie mogą być wyłącznie trójkątne
+(sekcja \texttt{Quadrilaterals} pliku MESH jest automatycznie dzielona na trójkąty).
+
+\subsection{Drzewo BSP}
+Ze wczytanych modeli tworzona jest scena w~postaci listy wszystkich wierzchołków
+oraz drzewa BSP zawierającego powierzchnie wszystkich obiektów.
+
+Drzewo BSP, w~każdym wierzchołku, dzieli aktualną przestrzeń
+na lewą i~prawą podprzestrzeń, które oddzielone są płaszczyzną wyznaczoną
+przez jedną z~powierzchni. Dzięki temu przeglądając drzewo we właściwej
+kolejności, możliwe jest rysowanie kolejnych powierzchni zakładając
+że wielokąty narysowane później na ekranie zamazują poprzednie.
+
+\subsubsection{Podział powierzchni}
+Jeśli jedna ze ścian na scenie przecina aktualną powierzchnię
+dzielącą przestrzeń, nie może zostać zakwalifikowana do prawego
+lub lewego poddrzewa.  Taka ściana musi zostać podzielona
+na dwie części wzdłuż płaszczyzny dzielącej.
+
+Dowolny trójkąt przecięty płaszczyzną może zostać podzielony na
+dwa trójkąty lub trójkąt i~czworokąt wypukły.
+Prosty algorytm pozwala wyznaczyć punkty przecięcia krawędzi
+dzielonego trójkąta z~powierzchnią dzielącą, będą one nowymi
+wierzchołkami.
+Jeśli produktem podziału jest czworokąt to dzielony jest
+na dwa trójkąty tą są procedurą, która stosowana jest przy
+wczytywaniu modeli.
+
+Dowolny czworokąt wypukły można podzielić na dwa trójkąty
+na dwa sposoby, dzieląc wzdłuż jednej lub drugiej przekątnej.
+Wybierany jest zawsze podział wzdłuż krótszej przekątnej,
+gdyż pozwala to uniknąć zdegenerowanych trójkątów.
+
+Największą trudnością przy implementacji drzewa BSP
+jest właściwe zarządzanie pamięcią przy dzieleniu trójkątów,
+gdzie pojawiają się nowe wierzchołki i~powierzchnie.
+W~tym zadaniu widać przewagę języków z~\textsl{garbage collectorem}.
+
+\subsubsection{Wybór wierzchołka}
+Zbudowanie optymalnego drzewa BSP jest problemem klasy~NP.
+Kluczowym dla jego rozwiązania jest wybór optymalnej
+płaszczyzny dzielącej.
+
+Są dwa sprzeczne kryteria które należy wziąć pod uwagę:
+zbalansowanie drzewa, oraz liczba wielokątów, które przecinają
+płaszczyznę dzielącą i~które trzeba będzie podzielić.
+
+Do wyboru wierzchołka na każdym poziomie, spośród dostępnych
+płaszczyzn wybierana jest próbka 20 kandydatów i~liczona
+jest liczba powierzchni która znajdzie się w~lewym
+i~prawym poddrzewie oraz tych przeciętych.
+
+Spośród kandydatów wybierana jest ostatecznie ta płaszczyzna,
+która minimalizuje
+$ \left| n_{left} - n_{right} \right| + k n_{split} $
+gdzie $n_{left}$, $n_{right}$ i~$n_{split}$ to wymienione wcześniej
+liczby powierzchni,
+a~$k$ jest magicznym współczynnikiem, ustawionym na~$2$. % lol :)
+
+\subsection{Kolory}
+Ponieważ rysowane są wypełnione ściany bez wyróżniania krawędzi,
+konieczne dla czytelności wygenerowanego obrazu było zróżnicowanie
+ich kolorów.
+Zwykle realizowane jest to przez jakiś model oświetlania,
+jednak tutaj zastosowałem proste rozwiązanie imitujące
+oświetlenie którego źródłem jest cała płaszczyzna równoległa
+do rzutni znajdująca się za plecami obserwatora.
+
+Każdy obiekt ma częściowo ustalony stały kolor we współrzędnych $u^*_0v^*_0$.
+Dla danego rzutu ustalony kolor wynikowy zależy od kwadratu odległości
+środka ciężkości powierzchni od rzutni oraz od rzutu wektora normalnego.
+Wyznaczony kolor we współrzędnych CIE~$L^*u^*v^*$ jest następnie
+przekształcany na {s$RGB$} i~używany do rysowania ściany.
+
+Wybrałem przestrzeń CIE~$L^*u^*v^*$, gdyż tak opisany kolor zarówno łatwo
+przekształcić do $RGB$, jak i~łatwo w~niej uzyskać pożądane efekty, czyli
+zmienić jasność (skalowanie $L^*$)
+oraz saturację (równomierne skalowanie $u^*$ i~$v^*$).
+
+\subsection{Scena}
+Scena wygląda podobnie jak w~poprzedniej części projektu.
+Zawiera cztery sześciany oraz aproksymację sfery
+(tym razem z~czworokątnymi bokami, na bazie sześcianu).
+Żeby pokazać poprawność implementacji BSP, 
+dodatkowo wstawiłem klasyczny przykład zasłaniania cyklicznego
+z~czterech trójkątów.
+
+\section{Podsumowanie}
+Program działa szybko i~poprawnie.
+% i chuj
+
+\end{document}
