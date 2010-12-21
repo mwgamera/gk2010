@@ -25,7 +25,12 @@ void make_scene(void) {
     "cube.mesh",
     "cube.mesh",
     "sphere.mesh",
-    "cyclic.mesh"
+
+    /* cyclic occlusion demo */
+    "triangle.mesh",
+    "triangle.mesh",
+    "triangle.mesh",
+    "triangle.mesh"
   };
   /* world transformation */
   static tmatrix tns[] = {
@@ -34,16 +39,24 @@ void make_scene(void) {
     TMATRIX(100,0,0,-200, 0,100, 0, 800, 0, 0,100, -30, 0,0,0,1),
     TMATRIX(100,0,0, 100, 0,100, 0, 800, 0, 0,100, -30, 0,0,0,1),
     TMATRIX( 50,0,0, 150, 0, 50, 0, 550, 0, 0, 50, -80, 0,0,0,1),
-    TMATRIX( 40,0,0,-400, 0,  0,40, 540, 0,40,  0,-160, 0,0,0,1)
+
+    TMATRIX( 40,  0,  0,  0,  0, 40,  0,1300,  0,  0, 40,-80, 0,0,0,1),
+    TMATRIX(  0,  0,-40, 80,  0, 40,  0,1300, 40,  0,  0,  0, 0,0,0,1),
+    TMATRIX(-40,  0,  0,  0,  0, 40,  0,1300,  0,  0,-40, 80, 0,0,0,1),
+    TMATRIX(  0,  0, 40,-80,  0, 40,  0,1300,-40,  0,  0,  0, 0,0,0,1)
   };
   /* colors (uv) */
   static float clrs[][2] = {
+    {-42.116,  22.187},
+    {-21.701, -59.268},
+    { 82.556,  49.946},
+    { 36.871,  30.384},
+    {137.094,  34.108},
+
     {-35.319, 56.595},
     {-39.325, 12.866},
     {  2.768,-84.294},
-    { 83.483, 36.735},
-    {175.053, 37.751},
-    {175.053, 37.751}
+    { 83.483, 36.735}
   };
   model *objects[sizeof fns / sizeof *fns];
   int i, j, n = (sizeof fns / sizeof *fns);
@@ -181,6 +194,7 @@ void close_color_poly(face *fx) {
 /* Draw a single face if applicable */
 void draw_face(face *s) {
   short i, d0, d1;
+  float cx, cy;
   /* ignore back-faces */
   if (surforient(s) <= 0.f) return;
   d0 = ~0;
@@ -196,10 +210,19 @@ void draw_face(face *s) {
   if (d0 || d1 & 0x10) return;
   /* draw polygon */
   gui_polygon_clear(poly);
-  for (i = 0; i < 3; i++)
+  cx = cy = 0.f;
+  for (i = 0; i < 3; i++) {
+    cx += POINT_GET(s->v[i]->camera, 0) / 3.f;
+    cy += POINT_GET(s->v[i]->camera, 1) / 3.f;
+  }
+  for (i = 0; i < 3; i++) {
+    float x, y;
+    x = POINT_GET(s->v[i]->camera, 0);
+    y = POINT_GET(s->v[i]->camera, 1);
     gui_polygon_add(poly,
-        (int)(0.5f + POINT_GET(s->v[i]->camera, 0)),
-        (int)(0.5f +POINT_GET(s->v[i]->camera, 1)));
+        (int)(x + (x < cx ? -0.9f : +0.9f)),
+        (int)(y + (y < cy ? -0.9f : +0.9f)));
+  }
   /* determine color and draw */
   close_color_poly(s);
 }
