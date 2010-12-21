@@ -5,6 +5,7 @@
 #include "model.h"
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 
 #define WIDTH  640
 #define HEIGHT 480
@@ -19,24 +20,49 @@ gui_polygon *poly;
 void make_scene(void) {
   /* models to load */
   static char *fns[] = {
-    "cyclic.mesh",
     "cube.mesh",
     "cube.mesh",
     "cube.mesh",
-    "cube.mesh"
+    "cube.mesh",
+    "sphere.mesh",
+
+    /* cyclic occlusion demo */
+    "triangle.mesh",
+    "triangle.mesh",
+    "triangle.mesh",
+    "triangle.mesh"
   };
   /* world transformation */
   static tmatrix tns[] = {
-    TMATRIX( 50,0,0,   0, 0, 50,0,   0, 0,0, 50,   0, 0,0,0,1),
-    TMATRIX(100,0,0, 100, 0,100,0, 500, 0,0,100, -30, 0,0,0,1),
-    TMATRIX(100,0,0,-200, 0,100,0, 500, 0,0,100, -30, 0,0,0,1),
-    TMATRIX(100,0,0,-200, 0,100,0, 800, 0,0,100, -30, 0,0,0,1),
-    TMATRIX(100,0,0, 100, 0,100,0, 800, 0,0,100, -30, 0,0,0,1)
+    TMATRIX(100,0,0, 100, 0,100, 0, 500, 0, 0,100, -30, 0,0,0,1),
+    TMATRIX(100,0,0,-200, 0,100, 0, 500, 0, 0,100, -30, 0,0,0,1),
+    TMATRIX(100,0,0,-200, 0,100, 0, 800, 0, 0,100, -30, 0,0,0,1),
+    TMATRIX(100,0,0, 100, 0,100, 0, 800, 0, 0,100, -30, 0,0,0,1),
+    TMATRIX( 50,0,0, 150, 0, 50, 0, 550, 0, 0, 50, -80, 0,0,0,1),
+
+    TMATRIX( 40,  0,  0,  0,  0, 40,  0,1300,  0,  0, 40,-80, 0,0,0,1),
+    TMATRIX(  0,  0,-40, 80,  0, 40,  0,1300, 40,  0,  0,  0, 0,0,0,1),
+    TMATRIX(-40,  0,  0,  0,  0, 40,  0,1300,  0,  0,-40, 80, 0,0,0,1),
+    TMATRIX(  0,  0, 40,-80,  0, 40,  0,1300,-40,  0,  0,  0, 0,0,0,1)
+  };
+  /* colors (uv) */
+  static float clrs[][2] = {
+    {-42.116,  22.187},
+    {-21.701, -59.268},
+    { 82.556,  49.946},
+    { 36.871,  30.384},
+    {137.094,  34.108},
+
+    {-35.319, 56.595},
+    {-39.325, 12.866},
+    {  2.768,-84.294},
+    { 83.483, 36.735}
   };
   model *objects[sizeof fns / sizeof *fns];
   int i, j, n = (sizeof fns / sizeof *fns);
   FILE *fp;
   assert(sizeof tns / sizeof*tns == n);
+  assert(sizeof clrs/ sizeof*clrs== n);
   /* read models of objects */
   for (i = j = 0; i < n; i++) {
     if ((fp = fopen(fns[i],"rb")) != NULL) {
@@ -48,6 +74,7 @@ void make_scene(void) {
       else {
         model_transform(tns[i], objects[j]);
         model_commit(objects[j]);
+        model_userdata(objects[j], clrs + i);
         j++;
       }
     }
@@ -81,6 +108,7 @@ short sutherland(point p) {
 
 /* Postprocessing of vertices */
 void proc_vertex(vertex *vx) {
+  scalar z = POINT_GET(vx->camera, 2);
   union { scalar w; short c; } code;
   /* normalization */
   if (POINT_GET(vx->camera, 2) > 0)
@@ -88,6 +116,7 @@ void proc_vertex(vertex *vx) {
   /* frustum clipping */
   code.c = sutherland(vx->camera);
   POINT_SET(vx->camera, 3, code.w);
+  POINT_SET(vx->camera, 2, z);
 }
 
 /* Get orientation of a face */
@@ -106,11 +135,66 @@ float surforient(face *s) {
   return x2*y3-x1*y3-x3*y2+x1*y2+x3*y1-x2*y1;
 }
 
-static int Q;
+/* Square of distance to barycenter of face */
+float face_distsq(face *s) {
+  int i;
+  float d = 0.f;
+  for (i = 0; i < 3; i++)
+    d += POINT_GET(s->v[i]->camera,2) / 3.0;
+  return d * d;
+}
+
+/* Color heuristic */
+#define REF_U 0.197839824821408
+#define REF_V 0.468336302932410
+void close_color_poly(face *fx) {
+  float u, v, l;
+  float x, y, z, r, g, b;
+  int R, G, B;
+  point normal;
+  u = ((float*)fx->userdata)[0];
+  v = ((float*)fx->userdata)[1];
+  /* heuristic */
+  normal = direction(pointplane(
+        fx->v[0]->camera,
+        fx->v[1]->camera,
+        fx->v[2]->camera));
+  r = POINT_GET(normal,2) / 2;
+  r = sqrt(r < 0 ? -r : r);
+  u *= r; v *= r;
+  l = 1249997500 / (face_distsq(fx) + 24999750);
+  l *= r;
+  if (l < 10.f) l = 10.f;
+  /* conversion uv->rgb */
+  y = (l+16) / 116;
+  if (y*y*y > 0.008856) y = y*y*y;
+  else y = (y-16/116) / 7.787;
+  u = u / (13*l) + REF_U;
+  v = v / (13*l) + REF_V;
+  y *= 100.f;
+  x = -(9*y*u) / ((u-4)*v - u*v);
+  z = (9*y-(15*v*y) - (v*x)) / (3*v);
+  x /= 100.f; y /= 100.f; z /= 100.f;
+  r = x *  3.2406 + y * -1.5372 + z * -0.4986;
+  g = x * -0.9689 + y *  1.8758 + z *  0.0415;
+  b = x *  0.0557 + y * -0.2040 + z *  1.0570;
+  if ( r > 0.0031308 ) r = 1.055 * exp(log(r)/2.4) - 0.055;
+  else r = 12.92 * r;
+  if ( g > 0.0031308 ) g = 1.055 * exp(log(g)/2.4) - 0.055;
+  else g = 12.92 * g;
+  if ( b > 0.0031308 ) b = 1.055 * exp(log(b)/2.4) - 0.055;
+  else b = 12.92 * b;
+  R = 0xFF * r; if (R>0xFF) R = 0xFF; if (R < 0) R = 0;
+  G = 0xFF * g; if (G>0xFF) G = 0xFF; if (G < 0) G = 0;
+  B = 0xFF * b; if (B>0xFF) B = 0xFF; if (B < 0) B = 0;
+  /* draw */
+  gui_draw_polygon_color(poly, R, G, B);
+}
+
 /* Draw a single face if applicable */
 void draw_face(face *s) {
   short i, d0, d1;
-  Q += 6;
+  float cx, cy;
   /* ignore back-faces */
   if (surforient(s) <= 0.f) return;
   d0 = ~0;
@@ -126,12 +210,21 @@ void draw_face(face *s) {
   if (d0 || d1 & 0x10) return;
   /* draw polygon */
   gui_polygon_clear(poly);
-  for (i = 0; i < 3; i++)
+  cx = cy = 0.f;
+  for (i = 0; i < 3; i++) {
+    cx += POINT_GET(s->v[i]->camera, 0) / 3.f;
+    cy += POINT_GET(s->v[i]->camera, 1) / 3.f;
+  }
+  for (i = 0; i < 3; i++) {
+    float x, y;
+    x = POINT_GET(s->v[i]->camera, 0);
+    y = POINT_GET(s->v[i]->camera, 1);
     gui_polygon_add(poly,
-        POINT_GET(s->v[i]->camera, 0),
-        POINT_GET(s->v[i]->camera, 1));
-  gui_draw_polygon_color(poly,
-      0x00, Q&0xFF, 0xFF); /* FIXME */
+        (int)(x + (x < cx ? -0.9f : +0.9f)),
+        (int)(y + (y < cy ? -0.9f : +0.9f)));
+  }
+  /* determine color and draw */
+  close_color_poly(s);
 }
 
 /* Render scene */
@@ -139,7 +232,6 @@ void draw_scene(void) {
   scene_transform(camera_transform(), data);
   scene_vertices(data, &proc_vertex);
   gui_clear();
-  Q = -6;
   scene_traverse(data, camera_position(), &draw_face);
   gui_update();
 }

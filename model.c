@@ -402,6 +402,12 @@ void model_commit(model *m) {
     m->v[i].world = normalize(m->v[i].camera);
 }
 
+void model_userdata(model *m, void *dat) {
+  int i;
+  for (i = 0; i < m->ns; i++)
+    m->s[i].userdata = dat;
+}
+
 
 
 /* Scene structure */
@@ -462,6 +468,7 @@ static int scene_build_copy(
     for (k = 0; k < models[i]->nv; k++)
       (*vx)[va+k].world = models[i]->v[k].world;
     for (k = 0; k < models[i]->ns; k++) {
+      memcpy(*fx+fa+k, models[i]->s + k, sizeof(face));
       (*fx)[fa+k].v[0] = models[i]->s[k].v[0] - models[i]->v + *vx + va;
       (*fx)[fa+k].v[1] = models[i]->s[k].v[1] - models[i]->v + *vx + va;
       (*fx)[fa+k].v[2] = models[i]->s[k].v[2] - models[i]->v + *vx + va;
@@ -478,14 +485,15 @@ static unsigned long xrand() {
   return y;
 }
 /* Qualify face */
+#define EPS 0.03f /* plane thickness */
 static int face_infront(point plane, face *fx) {
   scalar d[3];
   int i;
   for (i = 0; i < 3; i++)
     d[i] = pdotmul(plane, fx->v[i]->world);
-  if (d[0] >= 0.f && d[1] >= 0.f && d[2] >= 0.f)
+  if (d[0] >=-EPS && d[1] >=-EPS && d[2] >=-EPS)
     return 1; /* in front */
-  if (d[0] <= 0.f && d[1] <= 0.f && d[2] <= 0.f)
+  if (d[0] <= EPS && d[1] <= EPS && d[2] <= EPS)
     return -1; /* behind */
   return 0; /* intersected */
 }
@@ -581,12 +589,15 @@ static int facesplit(
 
   /* return front */
   if (fc == 4) {
+    memcpy(pos+*pi,   &fx, sizeof(face));
+    memcpy(pos+*pi+1, &fx, sizeof(face));
     split_quadrilateral(pos+*pi, pos+*pi+1,
         front[0], front[1], front[2], front[3]);
     *pi += 2;
   }
   else {
     assert(fc == 3);
+    memcpy(pos+*pi, &fx, sizeof(face));
     for (i = 0; i < 3; i++)
       pos[*pi].v[i] = front[i];
     *pi += 1;
@@ -594,12 +605,15 @@ static int facesplit(
 
   /* return back */
   if (bc == 4) {
+    memcpy(neg+*ni,   &fx, sizeof(face));
+    memcpy(neg+*ni+1, &fx, sizeof(face));
     split_quadrilateral(neg+*ni, neg+*ni+1,
         back[0], back[1], back[2], back[3]);
     *ni += 2;
   }
   else {
     assert(bc == 3);
+    memcpy(neg+*ni, &fx, sizeof(face));
     for (i = 0; i < 3; i++)
       neg[*ni].v[i] = back[i];
     *ni += 1;
