@@ -19,19 +19,21 @@ gui_polygon *poly;
 void make_scene(void) {
   /* models to load */
   static char *fns[] = {
-    "cyclic.mesh",
     "cube.mesh",
     "cube.mesh",
     "cube.mesh",
-    "cube.mesh"
+    "cube.mesh",
+    "sphere.mesh",
+    "cyclic.mesh"
   };
   /* world transformation */
   static tmatrix tns[] = {
-    TMATRIX( 50,0,0,   0, 0, 50,0,   0, 0,0, 50,   0, 0,0,0,1),
-    TMATRIX(100,0,0, 100, 0,100,0, 500, 0,0,100, -30, 0,0,0,1),
-    TMATRIX(100,0,0,-200, 0,100,0, 500, 0,0,100, -30, 0,0,0,1),
-    TMATRIX(100,0,0,-200, 0,100,0, 800, 0,0,100, -30, 0,0,0,1),
-    TMATRIX(100,0,0, 100, 0,100,0, 800, 0,0,100, -30, 0,0,0,1)
+    TMATRIX(100,0,0, 100, 0,100, 0, 500, 0, 0,100, -30, 0,0,0,1),
+    TMATRIX(100,0,0,-200, 0,100, 0, 500, 0, 0,100, -30, 0,0,0,1),
+    TMATRIX(100,0,0,-200, 0,100, 0, 800, 0, 0,100, -30, 0,0,0,1),
+    TMATRIX(100,0,0, 100, 0,100, 0, 800, 0, 0,100, -30, 0,0,0,1),
+    TMATRIX( 50,0,0, 150, 0, 50, 0, 550, 0, 0, 50, -80, 0,0,0,1),
+    TMATRIX( 40,0,0,-400, 0,  0,40, 540, 0,40,  0,-160, 0,0,0,1)
   };
   model *objects[sizeof fns / sizeof *fns];
   int i, j, n = (sizeof fns / sizeof *fns);
