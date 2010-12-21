@@ -21,6 +21,7 @@ struct _vertex {
 /* Face */
 struct _face {
   vertex *v[3]; /* pointers to vertices */
+  void *userdata;
 };
 
 /* Free model data */
@@ -34,6 +35,9 @@ void model_transform(tmatrix, model*);
 
 /* Commit transformed model to a world */
 void model_commit(model*);
+
+/* Set userdata for in all faces of model */
+void model_userdata(model*,void*);
 
 /* Free scene data */
 void scene_free(scene*);
