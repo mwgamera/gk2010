@@ -478,14 +478,15 @@ static unsigned long xrand() {
   return y;
 }
 /* Qualify face */
+#define EPS 0.03f /* plane thickness */
 static int face_infront(point plane, face *fx) {
   scalar d[3];
   int i;
   for (i = 0; i < 3; i++)
     d[i] = pdotmul(plane, fx->v[i]->world);
-  if (d[0] >= 0.f && d[1] >= 0.f && d[2] >= 0.f)
+  if (d[0] >=-EPS && d[1] >=-EPS && d[2] >=-EPS)
     return 1; /* in front */
-  if (d[0] <= 0.f && d[1] <= 0.f && d[2] <= 0.f)
+  if (d[0] <= EPS && d[1] <= EPS && d[2] <= EPS)
     return -1; /* behind */
   return 0; /* intersected */
 }
